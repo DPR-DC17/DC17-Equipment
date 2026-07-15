@@ -93,7 +93,8 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .shapebtn{background:none;border:none;color:var(--muted);padding:4px 10px;cursor:pointer;font-size:14px;border-radius:2px;font-family:'IBM Plex Mono'}
 .shapebtn.sel{background:var(--amber);color:#14171c}
 .hs.editable{cursor:move}
-.hs .rz{position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;background:var(--amber);border:2px solid #14171c;border-radius:3px;cursor:nwse-resize;touch-action:none}
+.hs .rz{position:absolute;right:-8px;bottom:-8px;width:16px;height:16px;background:var(--amber);border:2px solid #14171c;border-radius:3px;cursor:nwse-resize;touch-action:none}
+.hs .rz::after{content:'';position:absolute;inset:-10px}
 @keyframes hotpulse{0%,100%{box-shadow:0 0 14px var(--hot-glow), inset 0 0 12px rgba(255,65,54,.35)}50%{box-shadow:0 0 26px var(--hot-glow), inset 0 0 18px rgba(255,65,54,.5)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
 @keyframes flash{0%,100%{outline:none}50%{outline:4px solid var(--amber)}}
@@ -558,8 +559,8 @@ function attachBoxEditing(div, eq, rz){
       eq.x = Math.min(Math.max(act.ox+dx, 0), 1-eq.w);
       eq.y = Math.min(Math.max(act.oy+dy, 0), 1-eq.h);
     } else {
-      eq.w = Math.min(Math.max(act.ow+dx, 0.004), 1-eq.x);
-      eq.h = Math.min(Math.max(act.oh+dy, 0.004), 1-eq.y);
+      eq.w = Math.min(Math.max(act.ow+dx, 0.0008), 1-eq.x);
+      eq.h = Math.min(Math.max(act.oh+dy, 0.0008), 1-eq.y);
     }
     div.style.left=(eq.x*100)+'%'; div.style.top=(eq.y*100)+'%';
     div.style.width=(eq.w*100)+'%'; div.style.height=(eq.h*100)+'%';
@@ -645,13 +646,16 @@ function setShape(s){
     if(!addMode) return;
     ev.preventDefault();
     var r = img.getBoundingClientRect();
-    start = { x:(ev.clientX-r.left)/r.width, y:(ev.clientY-r.top)/r.height };
+    start = { x:(ev.clientX-r.left)/r.width, y:(ev.clientY-r.top)/r.height,
+              px:ev.clientX, py:ev.clientY, movedPx:0 };
     ghost = document.createElement('div'); ghost.className='dragbox'+(curShape==='ellipse'?' ellipse':'');
     wrap.appendChild(ghost);
     wrap.setPointerCapture(ev.pointerId);
   });
   wrap.addEventListener('pointermove', function(ev){
     if(!addMode || !start || !ghost) return;
+    start.movedPx = Math.max(start.movedPx,
+      Math.min(Math.abs(ev.clientX-start.px), Math.abs(ev.clientY-start.py)));
     var r = img.getBoundingClientRect();
     var cx = Math.min(Math.max((ev.clientX-r.left)/r.width,0),1);
     var cy = Math.min(Math.max((ev.clientY-r.top)/r.height,0),1);
@@ -664,14 +668,15 @@ function setShape(s){
   wrap.addEventListener('pointerup', function(){
     if(!addMode || !start) return;
     var rect = ghost && ghost._rect;
+    var wasDrag = start.movedPx >= 5;   // judged in screen pixels, not drawing size
     var clickPt = start;
     if(ghost) ghost.remove(); ghost=null; start=null;
-    if(rect && rect.w>0.004 && rect.h>0.004){
+    if(wasDrag && rect && rect.w>0.0008 && rect.h>0.0008){
       pendingRect = rect;
       pendingRect.shape = curShape;
       lastRect = {w:rect.w, h:rect.h, shape:curShape};
       openEqModal();
-    } else if(lastRect){
+    } else if(!wasDrag && lastRect){
       /* single click: stamp a box at the last-used size, centered on the click */
       var w = lastRect.w, h = lastRect.h;
       pendingRect = {
@@ -782,8 +787,9 @@ function saveEqModal(){
   }
   markDirty();
   document.getElementById('modal-eq').classList.remove('open');
+  var wasNew = !editingEqId;
   pendingRect=null; editingEqId=null;
-  setAddMode(false);
+  if(!wasNew) setAddMode(false);   // stay in add mode after placing, so you can keep stamping
   renderAll(); renderSettings();
 }
 document.getElementById('eq-name').addEventListener('keydown', function(e){ if(e.key==='Enter') saveEqModal(); });
