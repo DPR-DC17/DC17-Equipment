@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DC17 Equipment — Energization Status Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#14171c; --panel:#1d2229; --panel2:#232a33; --line:#2c333d;
+  --text:#e8ebee; --muted:#8b95a1;
+  --amber:#f5a623;
+  --hot:#ff4136; --hot-glow:rgba(255,65,54,.55);
+  --safe:#2ecc71; --safe-dim:rgba(46,204,113,.15);
+  --danger:#e5484d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-size:15px;display:flex;flex-direction:column;overflow:hidden}
+
+/* ---------- header ---------- */
+header{display:flex;align-items:center;gap:16px;padding:10px 18px;background:var(--panel);border-bottom:2px solid var(--amber);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.bolt{width:30px;height:30px;background:var(--amber);clip-path:polygon(62% 0,20% 55%,45% 55%,38% 100%,80% 42%,55% 42%);flex-shrink:0}
+h1{font-family:'Barlow Condensed';font-weight:700;font-size:24px;letter-spacing:2px;text-transform:uppercase}
+h1 span{color:var(--amber)}
+.subtitle{font-size:12px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+.spacer{flex:1}
+.lamps{display:flex;gap:18px;align-items:center;font-family:'IBM Plex Mono';font-size:12px}
+.lamp{display:flex;align-items:center;gap:7px;color:var(--muted)}
+.lamp b{color:var(--text);font-size:15px}
+.dot{width:12px;height:12px;border-radius:50%;border:2px solid #000}
+.dot.red{background:var(--hot);box-shadow:0 0 8px var(--hot-glow)}
+.dot.green{background:var(--safe)}
+nav{display:flex;gap:6px;align-items:center}
+.navbtn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);padding:8px 18px;cursor:pointer;font-family:'Barlow Condensed';font-size:16px;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;border-radius:3px}
+.navbtn.active{background:var(--amber);color:#14171c;border-color:var(--amber)}
+.editpill{background:none;border:1px dashed var(--line);color:var(--muted);padding:7px 14px;cursor:pointer;border-radius:20px;font-size:12px;font-family:'IBM Plex Mono'}
+.editpill.on{border:1px solid var(--hot);color:#fff;background:var(--hot)}
+
+/* ---------- unpublished banner ---------- */
+.banner{display:none;align-items:center;gap:12px;background:#3a2a08;border-bottom:1px solid var(--amber);padding:8px 18px;font-size:13px;flex-wrap:wrap}
+.banner.show{display:flex}
+.banner .msg{color:var(--amber);font-family:'IBM Plex Mono';font-size:12px}
+
+/* ---------- layout ---------- */
+main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.page{flex:1;display:none;flex-direction:column;overflow:hidden}
+.page.active{display:flex}
+
+/* ---------- drawing tabs ---------- */
+.dtabs{display:flex;gap:4px;padding:8px 14px 0;background:var(--bg);flex-wrap:wrap;align-items:flex-end}
+.dtab{background:var(--panel);border:1px solid var(--line);border-bottom:none;color:var(--muted);padding:7px 14px;cursor:pointer;font-family:'Barlow Condensed';font-size:15px;letter-spacing:1px;text-transform:uppercase;font-weight:600;border-radius:4px 4px 0 0;display:flex;align-items:center;gap:8px}
+.dtab.active{background:var(--panel2);color:var(--text);border-color:var(--amber);border-bottom:2px solid var(--panel2);margin-bottom:-1px}
+.dtab .cnt{font-family:'IBM Plex Mono';font-size:11px;background:#0e1114;padding:1px 6px;border-radius:8px}
+.dtab .cnt.haslive{color:var(--hot)}
+.dtab-add{background:none;border:1px dashed var(--line);color:var(--muted);padding:7px 12px;cursor:pointer;border-radius:4px 4px 0 0;font-size:14px}
+.dtab-add:hover{color:var(--amber);border-color:var(--amber)}
+
+/* ---------- toolbar ---------- */
+.toolbar{display:flex;gap:8px;align-items:center;padding:8px 14px;background:var(--panel2);border-top:1px solid var(--amber);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.btn{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:7px 14px;cursor:pointer;border-radius:3px;font-family:'Barlow';font-size:13px;font-weight:500}
+.btn:hover{border-color:var(--amber)}
+.btn.warn{background:var(--amber);color:#14171c;border-color:var(--amber);font-weight:600}
+.btn.warn.armed{background:var(--hot);border-color:var(--hot);color:#fff;animation:pulse 1.2s infinite}
+.btn.ghost{background:none;color:var(--muted)}
+.btn.dangerous{border-color:var(--danger);color:var(--danger)}
+.zoomgrp{display:flex;align-items:center;gap:4px;margin-left:auto}
+.zlabel{font-family:'IBM Plex Mono';font-size:12px;color:var(--muted);min-width:48px;text-align:center}
+.hint{font-size:12px;color:var(--amber);font-family:'IBM Plex Mono'}
+
+/* ---------- viewer ---------- */
+.viewer{flex:1;overflow:auto;background:#0c0e11;position:relative}
+.canvas-wrap{position:relative;margin:20px;display:inline-block}
+.canvas-wrap img{display:block;user-select:none;-webkit-user-drag:none;box-shadow:0 0 30px rgba(0,0,0,.6);background:#fff;min-width:200px;min-height:120px}
+.viewer.addmode{cursor:crosshair}
+.viewer.panmode{cursor:grab}
+.viewer.panning{cursor:grabbing}
+.imgerr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--panel);color:var(--muted);text-align:center;padding:20px;font-family:'IBM Plex Mono';font-size:13px;border:1px dashed var(--danger)}
+
+.hs{position:absolute;border:2px solid var(--safe);background:var(--safe-dim);border-radius:2px;cursor:pointer}
+.hs .tag{position:absolute;top:-20px;left:-2px;font-family:'IBM Plex Mono';font-size:11px;font-weight:600;background:#0e1114;color:var(--safe);padding:1px 6px;white-space:nowrap;border:1px solid var(--safe);border-radius:2px}
+.hs.on{border-color:var(--hot);background:rgba(255,65,54,.28);box-shadow:0 0 14px var(--hot-glow), inset 0 0 12px rgba(255,65,54,.35);animation:hotpulse 1.6s infinite}
+.hs.on .tag{color:#fff;background:var(--hot);border-color:var(--hot)}
+.hs.flash{animation:flash .5s 4}
+@keyframes hotpulse{0%,100%{box-shadow:0 0 14px var(--hot-glow), inset 0 0 12px rgba(255,65,54,.35)}50%{box-shadow:0 0 26px var(--hot-glow), inset 0 0 18px rgba(255,65,54,.5)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+@keyframes flash{0%,100%{outline:none}50%{outline:4px solid var(--amber)}}
+.ghost{position:absolute;border:2px dashed var(--amber);background:rgba(245,166,35,.12);pointer-events:none}
+
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;color:var(--muted);text-align:center;padding:30px}
+.empty h2{font-family:'Barlow Condensed';font-size:26px;letter-spacing:2px;text-transform:uppercase;color:var(--text)}
+
+/* ---------- popup ---------- */
+.pop{position:absolute;z-index:50;background:var(--panel);border:1px solid var(--amber);border-radius:4px;padding:12px;min-width:230px;box-shadow:0 8px 30px rgba(0,0,0,.7)}
+.pop h3{font-family:'IBM Plex Mono';font-size:14px;margin-bottom:6px}
+.pop .prow{font-size:12px;color:var(--muted);margin-bottom:4px;font-family:'IBM Plex Mono'}
+.pop .prow b{color:var(--text)}
+.pop .actions{display:flex;gap:6px;margin-top:10px}
+.statuschip{display:inline-block;font-family:'IBM Plex Mono';font-size:11px;font-weight:600;padding:2px 8px;border-radius:2px;letter-spacing:1px}
+.statuschip.on{background:var(--hot);color:#fff}
+.statuschip.off{background:var(--safe-dim);color:var(--safe);border:1px solid var(--safe)}
+
+/* ---------- settings page ---------- */
+.settings-scroll{flex:1;overflow:auto;padding:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:18px;max-width:1100px}
+.card h2{font-family:'Barlow Condensed';font-size:20px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;border-left:3px solid var(--amber);padding-left:10px}
+.card .desc{font-size:13px;color:var(--muted);margin-bottom:14px;padding-left:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-family:'Barlow Condensed';text-transform:uppercase;letter-spacing:1.5px;font-size:13px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:2px solid var(--line)}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr.rowon td{background:rgba(255,65,54,.07)}
+tr:hover td{background:rgba(245,166,35,.05)}
+input[type=text],input[type=date],select{background:#0e1114;border:1px solid var(--line);color:var(--text);padding:6px 8px;border-radius:3px;font-family:'IBM Plex Mono';font-size:13px}
+input[type=text]:focus,input[type=date]:focus,select:focus{outline:none;border-color:var(--amber)}
+input[type=date]{color-scheme:dark}
+.cbwrap{display:flex;align-items:center;gap:8px}
+input[type=checkbox]{appearance:none;width:22px;height:22px;border:2px solid var(--line);border-radius:3px;background:#0e1114;cursor:pointer;position:relative;flex-shrink:0}
+input[type=checkbox]:checked{background:var(--hot);border-color:var(--hot);box-shadow:0 0 8px var(--hot-glow)}
+input[type=checkbox]:checked::after{content:'✓';position:absolute;color:#fff;font-weight:700;font-size:15px;left:3px;top:-1px}
+input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
+.mini{font-size:12px;padding:4px 10px}
+.tag-mono{font-family:'IBM Plex Mono';font-weight:600}
+.muted{color:var(--muted)}
+.dlist{display:flex;flex-direction:column;gap:8px}
+.drow{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);padding:8px 12px;border-radius:3px;flex-wrap:wrap}
+.drow .dname{font-family:'IBM Plex Mono';font-weight:600;flex:1;min-width:140px}
+.drow .dfile{font-family:'IBM Plex Mono';font-size:12px;color:var(--muted)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--amber);padding:10px 20px;border-radius:4px;z-index:200;font-family:'IBM Plex Mono';font-size:13px;display:none}
+
+/* ---------- modal ---------- */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100}
+.ov.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--amber);border-radius:5px;padding:20px;width:400px;max-width:92vw}
+.modal h3{font-family:'Barlow Condensed';font-size:20px;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+.fg{margin-bottom:12px}
+.fl{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+.fg input,.fg select{width:100%}
+.fnote{font-size:12px;color:var(--muted);margin-top:4px}
+.mf{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+@media (max-width:700px){
+  header{padding:8px 10px}
+  .lamps{order:3;width:100%;justify-content:flex-start}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="bolt"></div>
+    <div>
+      <h1><span>DC17</span> Equipment</h1>
+      <div class="subtitle" id="site-sub">Energization status board</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="lamps">
+    <div class="lamp"><span class="dot red"></span> ENERGIZED <b id="cnt-on">0</b></div>
+    <div class="lamp"><span class="dot green"></span> DE-ENERGIZED <b id="cnt-off">0</b></div>
+  </div>
+  <nav>
+    <button class="navbtn active" id="nav-draw" onclick="showPage('draw')">Drawings</button>
+    <button class="navbtn" id="nav-set" onclick="showPage('set')">Settings</button>
+    <button class="editpill" id="edit-toggle" onclick="toggleEditMode()">✎ Edit mode: OFF</button>
+  </nav>
+</header>
+
+<div class="banner" id="banner">
+  <span class="msg">⚠ UNPUBLISHED CHANGES — viewers still see the old status until you upload the new data.json to GitHub.</span>
+  <button class="btn warn mini" onclick="downloadDataJson()">Download data.json</button>
+  <button class="btn ghost mini" onclick="discardLocal()">Discard changes</button>
+</div>
+
+<main>
+<!-- ============ DRAWINGS PAGE ============ -->
+<div class="page active" id="page-draw">
+  <div class="dtabs" id="dtabs"></div>
+  <div class="toolbar" id="toolbar" style="display:none">
+    <button class="btn warn" id="btn-add-eq" onclick="toggleAddMode()" style="display:none">+ Add equipment</button>
+    <span class="hint" id="mode-hint"></span>
+    <div class="zoomgrp">
+      <button class="btn" onclick="zoomBy(-0.25)">−</button>
+      <span class="zlabel" id="zlabel">100%</span>
+      <button class="btn" onclick="zoomBy(0.25)">+</button>
+      <button class="btn" onclick="zoomFit()">Fit</button>
+    </div>
+  </div>
+  <div class="viewer panmode" id="viewer">
+    <div class="empty" id="viewer-empty">
+      <h2>No drawings yet</h2>
+      <p id="empty-msg">Turn on Edit mode, then add drawings.<br>Upload the drawing images to the <b>drawings/</b> folder in the GitHub repo first.</p>
+      <button class="btn warn" id="empty-add" onclick="promptAddDrawing()" style="display:none">+ Add drawing</button>
+    </div>
+    <div class="canvas-wrap" id="canvas-wrap" style="display:none">
+      <img id="dimg" alt="drawing">
+      <div id="hs-layer"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SETTINGS PAGE ============ -->
+<div class="page" id="page-set">
+  <div class="settings-scroll">
+    <div class="card">
+      <h2>Equipment status</h2>
+      <div class="desc" id="eq-desc">Check the box when a piece of equipment is energized — it turns red on the drawing. (Turn on Edit mode to make changes.)</div>
+      <table>
+        <thead><tr>
+          <th style="width:42px">Live</th>
+          <th>Equipment</th>
+          <th>Drawing / Room</th>
+          <th style="width:160px">Date energized</th>
+          <th style="width:150px"></th>
+        </tr></thead>
+        <tbody id="eq-tbody"></tbody>
+      </table>
+      <p class="muted" id="eq-empty" style="padding:14px 10px;display:none">No equipment yet. Turn on Edit mode, open a drawing, click “+ Add equipment,” and drag a box over the gear.</p>
+    </div>
+
+    <div class="card" id="card-drawings">
+      <h2>Drawings</h2>
+      <div class="desc">Each drawing points to an image file in the repo's <b>drawings/</b> folder (e.g. <b>drawings/elec-room-1.jpg</b>). Upload the image to GitHub first, then add it here.</div>
+      <div class="dlist" id="dlist"></div>
+      <div style="margin-top:12px"><button class="btn warn" id="btn-add-drawing" onclick="promptAddDrawing()">+ Add drawing</button></div>
+    </div>
+
+    <div class="card" id="card-publish">
+      <h2>Publish</h2>
+      <div class="desc">Your edits are saved in this browser only. To make them live for everyone, download <b>data.json</b> and upload it to the repo (replace the old one). GitHub Pages updates in about a minute.</div>
+      <button class="btn warn" onclick="downloadDataJson()">Download data.json</button>
+      <button class="btn ghost" onclick="discardLocal()">Discard local changes</button>
+    </div>
+
+    <div class="card">
+      <h2>Site</h2>
+      <div class="desc">Project name shown under the logo.</div>
+      <div class="cbwrap">
+        <input type="text" id="site-name" placeholder="e.g. Data Center Hall 2 — Phase 1" style="min-width:280px" onchange="setSiteName(this.value)">
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+
+<!-- add/edit equipment modal -->
+<div class="ov" id="modal-eq">
+  <div class="modal">
+    <h3 id="modal-eq-title">New equipment</h3>
+    <div class="fg"><label class="fl">Equipment tag / name</label><input type="text" id="eq-name" placeholder="e.g. SWBD-1A, UPS-2, ATS-3"></div>
+    <div class="fg"><label class="fl">Date energized (optional)</label><input type="date" id="eq-date"></div>
+    <div class="fg"><label class="cbwrap"><input type="checkbox" id="eq-live"> <span>Currently energized</span></label></div>
+    <div class="mf">
+      <button class="btn ghost" onclick="closeEqModal()">Cancel</button>
+      <button class="btn warn" onclick="saveEqModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- add drawing modal -->
+<div class="ov" id="modal-draw">
+  <div class="modal">
+    <h3>Add drawing</h3>
+    <div class="fg">
+      <label class="fl">Image filename in drawings/ folder</label>
+      <input type="text" id="dw-file" placeholder="e.g. elec-room-1.jpg">
+      <div class="fnote">The image must already be uploaded to the repo's <b>drawings/</b> folder (JPG or PNG).</div>
+    </div>
+    <div class="fg"><label class="fl">Display name</label><input type="text" id="dw-name" placeholder="e.g. Elec Room 1"></div>
+    <div class="mf">
+      <button class="btn ghost" onclick="document.getElementById('modal-draw').classList.remove('open')">Cancel</button>
+      <button class="btn warn" onclick="saveDrawModal()">Add drawing</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= STATE ================= */
+var data = { site:'', drawings:[], equipment:[] };
+var published = null;      // last fetched data.json
+var hasLocal = false;      // unpublished edits exist
+var editMode = false;
+var activeDrawing = null;
+var zoom = 1, fitted = false;
+var addMode = false;
+var pendingRect = null;
+var editingEqId = null;
+
+var LS_KEY = 'dc17_equipment_working';
+
+function uid(){ return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function toast(msg){
+  var t=document.getElementById('toast'); t.textContent=msg; t.style.display='block';
+  clearTimeout(t._h); t._h=setTimeout(function(){t.style.display='none';},2600);
+}
+function todayStr(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function normalize(obj){
+  return JSON.stringify({
+    site: obj.site||'',
+    drawings: (obj.drawings||[]).map(function(d){return {id:d.id,name:d.name,file:d.file}}),
+    equipment: (obj.equipment||[]).map(function(e){return {id:e.id,name:e.name,drawingId:e.drawingId,x:e.x,y:e.y,w:e.w,h:e.h,energized:!!e.energized,date:e.date||''}})
+  });
+}
+
+/* ================= LOAD ================= */
+function boot(){
+  fetch('data.json?t='+Date.now())
+    .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    .then(function(json){ published = json; afterFetch(); })
+    .catch(function(){
+      published = null;
+      // file:// or missing data.json — still allow working from local copy
+      afterFetch();
+      if(location.protocol==='file:') toast('Tip: data.json can\'t load from a local file — test on GitHub Pages or a local server.');
+    });
+}
+function afterFetch(){
+  var local = null;
+  try{ local = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){}
+  if(local && published && normalize(local)===normalize(published)){
+    // published now matches local edits — clear the working copy
+    localStorage.removeItem(LS_KEY); local = null;
+  }
+  if(local){ data = local; hasLocal = true; }
+  else if(published){ data = published; hasLocal = false; }
+  else { data = {site:'', drawings:[], equipment:[]}; hasLocal = !!local; }
+  if(!data.drawings) data.drawings = [];
+  if(!data.equipment) data.equipment = [];
+  if(data.drawings.length) activeDrawing = data.drawings[0].id;
+  document.getElementById('site-name').value = data.site||'';
+  applySiteName();
+  updateBanner();
+  renderAll(); renderSettings();
+}
+function markDirty(){
+  hasLocal = true;
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(data)); }
+  catch(e){ alert('Could not save working copy in this browser.'); }
+  updateBanner();
+}
+function updateBanner(){
+  document.getElementById('banner').classList.toggle('show', hasLocal);
+}
+function discardLocal(){
+  if(!hasLocal){ toast('No local changes to discard'); return; }
+  if(!confirm('Discard local edits and revert to the published data.json?')) return;
+  localStorage.removeItem(LS_KEY);
+  hasLocal = false;
+  boot();
+}
+
+/* ================= EDIT MODE ================= */
+function toggleEditMode(){
+  editMode = !editMode;
+  var b = document.getElementById('edit-toggle');
+  b.classList.toggle('on', editMode);
+  b.textContent = editMode ? '✎ Edit mode: ON' : '✎ Edit mode: OFF';
+  if(!editMode) setAddMode(false);
+  document.getElementById('btn-add-eq').style.display = editMode? '' : 'none';
+  document.getElementById('empty-add').style.display = editMode? '' : 'none';
+  document.getElementById('eq-desc').textContent = editMode
+    ? 'Check the box when a piece of equipment is energized — it turns red on the drawing. Download data.json and upload to GitHub to publish.'
+    : 'Current status as published. Turn on Edit mode to make changes.';
+  renderAll(); renderSettings();
+}
+
+/* ================= NAV ================= */
+function showPage(p){
+  document.getElementById('page-draw').classList.toggle('active', p==='draw');
+  document.getElementById('page-set').classList.toggle('active', p==='set');
+  document.getElementById('nav-draw').classList.toggle('active', p==='draw');
+  document.getElementById('nav-set').classList.toggle('active', p==='set');
+  if(p==='set') renderSettings();
+}
+
+/* ================= DRAWINGS ================= */
+function promptAddDrawing(){
+  if(!editMode){ toast('Turn on Edit mode first'); return; }
+  document.getElementById('dw-file').value='';
+  document.getElementById('dw-name').value='';
+  document.getElementById('modal-draw').classList.add('open');
+  setTimeout(function(){document.getElementById('dw-file').focus();},50);
+}
+function saveDrawModal(){
+  var file = document.getElementById('dw-file').value.trim();
+  var name = document.getElementById('dw-name').value.trim();
+  if(!file){ alert('Enter the image filename.'); return; }
+  if(!name) name = file.replace(/\.(png|jpe?g|webp)$/i,'');
+  if(!/^drawings\//.test(file)) file = 'drawings/'+file;
+  var d = {id:uid(), name:name, file:file};
+  data.drawings.push(d);
+  activeDrawing = d.id; fitted = false;
+  markDirty();
+  document.getElementById('modal-draw').classList.remove('open');
+  renderAll(); renderSettings();
+  toast('Drawing added: '+name);
+}
+function renameDrawing(id){
+  if(!editMode) return;
+  var d = data.drawings.find(function(x){return x.id===id}); if(!d) return;
+  var n = prompt('Rename drawing:', d.name); if(!n) return;
+  d.name = n; markDirty(); renderAll(); renderSettings();
+}
+function deleteDrawing(id){
+  if(!editMode) return;
+  var d = data.drawings.find(function(x){return x.id===id}); if(!d) return;
+  var eqCount = data.equipment.filter(function(e){return e.drawingId===id}).length;
+  if(!confirm('Remove drawing "'+d.name+'"'+(eqCount? ' and its '+eqCount+' equipment item(s)':'')+'? (The image file in the repo is not deleted.)')) return;
+  data.drawings = data.drawings.filter(function(x){return x.id!==id});
+  data.equipment = data.equipment.filter(function(e){return e.drawingId!==id});
+  if(activeDrawing===id) activeDrawing = data.drawings.length? data.drawings[0].id : null;
+  markDirty(); renderAll(); renderSettings();
+}
+
+/* ================= VIEWER ================= */
+function renderTabs(){
+  var el = document.getElementById('dtabs'); el.innerHTML='';
+  data.drawings.forEach(function(d){
+    var eqs = data.equipment.filter(function(e){return e.drawingId===d.id});
+    var live = eqs.filter(function(e){return e.energized}).length;
+    var b = document.createElement('button');
+    b.className = 'dtab'+(d.id===activeDrawing?' active':'');
+    b.innerHTML = escapeHtml(d.name)+' <span class="cnt'+(live?' haslive':'')+'">'+live+'/'+eqs.length+'</span>';
+    b.onclick = function(){ activeDrawing=d.id; fitted=false; setAddMode(false); renderAll(); };
+    el.appendChild(b);
+  });
+  if(editMode){
+    var add = document.createElement('button');
+    add.className='dtab-add'; add.textContent='+ Add drawing';
+    add.onclick = promptAddDrawing;
+    el.appendChild(add);
+  }
+}
+function renderViewer(){
+  var d = data.drawings.find(function(x){return x.id===activeDrawing});
+  var wrap = document.getElementById('canvas-wrap');
+  var empty = document.getElementById('viewer-empty');
+  var tb = document.getElementById('toolbar');
+  if(!d){ wrap.style.display='none'; empty.style.display='flex'; tb.style.display='none'; return; }
+  empty.style.display='none'; wrap.style.display='inline-block'; tb.style.display='flex';
+  var img = document.getElementById('dimg');
+  var oldErr = document.getElementById('img-err'); if(oldErr) oldErr.remove();
+  if(img.getAttribute('data-id') !== d.id){
+    img.onload = function(){ if(!fitted){ zoomFit(); fitted=true; } applyZoom(); renderHotspots(); };
+    img.onerror = function(){
+      var e = document.createElement('div');
+      e.className='imgerr'; e.id='img-err';
+      e.innerHTML = 'Image not found:<br><b>'+escapeHtml(d.file)+'</b><br><br>Upload it to the drawings/ folder in the GitHub repo, then refresh.';
+      img.style.width='560px'; img.style.height='300px';
+      wrap.appendChild(e);
+    };
+    img.setAttribute('data-id', d.id);
+    img.src = d.file + (d.file.indexOf('?')<0 ? '?t='+Date.now() : '');
+  } else { applyZoom(); renderHotspots(); }
+}
+function applyZoom(){
+  var img = document.getElementById('dimg');
+  if(!img.naturalWidth) return;
+  img.style.height='';
+  img.style.width = Math.round(img.naturalWidth*zoom)+'px';
+  document.getElementById('zlabel').textContent = Math.round(zoom*100)+'%';
+}
+function zoomBy(dz){ zoom = Math.min(4, Math.max(0.15, zoom+dz)); applyZoom(); }
+function zoomFit(){
+  var img = document.getElementById('dimg');
+  var v = document.getElementById('viewer');
+  if(!img.naturalWidth) return;
+  zoom = Math.min((v.clientWidth-40)/img.naturalWidth, (v.clientHeight-40)/img.naturalHeight);
+  zoom = Math.max(0.1, zoom);
+  applyZoom();
+}
+function renderHotspots(){
+  var layer = document.getElementById('hs-layer'); layer.innerHTML='';
+  closePopup();
+  data.equipment.filter(function(e){return e.drawingId===activeDrawing}).forEach(function(e){
+    var div = document.createElement('div');
+    div.className = 'hs'+(e.energized?' on':'');
+    div.style.left=(e.x*100)+'%'; div.style.top=(e.y*100)+'%';
+    div.style.width=(e.w*100)+'%'; div.style.height=(e.h*100)+'%';
+    div.setAttribute('data-eq', e.id);
+    var tag = document.createElement('span'); tag.className='tag'; tag.textContent=e.name;
+    div.appendChild(tag);
+    div.addEventListener('click', function(ev){ ev.stopPropagation(); if(!addMode) openPopup(e.id, div); });
+    layer.appendChild(div);
+  });
+}
+
+/* ---- popup ---- */
+function openPopup(eqId, anchor){
+  closePopup();
+  var e = data.equipment.find(function(x){return x.id===eqId}); if(!e) return;
+  var pop = document.createElement('div');
+  pop.className='pop'; pop.id='eq-pop';
+  var actions = editMode
+    ? '<div class="actions">'
+      +'<button class="btn '+(e.energized?'':'warn')+' mini" onclick="toggleEnergized(\''+e.id+'\')">'+(e.energized?'De-energize':'Energize')+'</button>'
+      +'<button class="btn mini" onclick="editEq(\''+e.id+'\')">Edit</button>'
+      +'<button class="btn ghost mini" onclick="closePopup()">✕</button></div>'
+    : '<div class="actions"><button class="btn ghost mini" onclick="closePopup()">Close</button></div>';
+  pop.innerHTML =
+    '<h3>'+escapeHtml(e.name)+'</h3>'
+    +'<div class="prow">Status: <span class="statuschip '+(e.energized?'on':'off')+'">'+(e.energized?'ENERGIZED':'DE-ENERGIZED')+'</span></div>'
+    +'<div class="prow">Date energized: <b>'+(e.date||'—')+'</b></div>'
+    + actions;
+  var wrap = document.getElementById('canvas-wrap');
+  wrap.appendChild(pop);
+  var left = anchor.offsetLeft + anchor.offsetWidth + 8;
+  var top = anchor.offsetTop;
+  if(left + 240 > wrap.offsetWidth) left = Math.max(0, anchor.offsetLeft - 250);
+  pop.style.left = left+'px'; pop.style.top = top+'px';
+}
+function closePopup(){ var p=document.getElementById('eq-pop'); if(p) p.remove(); }
+document.getElementById('viewer').addEventListener('click', function(e){ if(e.target.id==='viewer'||e.target.id==='dimg') closePopup(); });
+
+/* ---- add-equipment drag ---- */
+function toggleAddMode(){ setAddMode(!addMode); }
+function setAddMode(on){
+  if(on && !editMode) return;
+  addMode = on;
+  var v = document.getElementById('viewer');
+  v.classList.toggle('addmode', on);
+  v.classList.toggle('panmode', !on);
+  var b = document.getElementById('btn-add-eq');
+  b.classList.toggle('armed', on);
+  b.textContent = on ? 'Cancel add mode' : '+ Add equipment';
+  document.getElementById('mode-hint').textContent = on ? 'Drag a box over the equipment on the drawing' : '';
+}
+(function(){
+  var wrap = document.getElementById('canvas-wrap');
+  var img = document.getElementById('dimg');
+  var viewer = document.getElementById('viewer');
+  var start=null, ghost=null;
+  var pan=null;
+
+  wrap.addEventListener('pointerdown', function(ev){
+    if(!addMode) return;
+    ev.preventDefault();
+    var r = img.getBoundingClientRect();
+    start = { x:(ev.clientX-r.left)/r.width, y:(ev.clientY-r.top)/r.height };
+    ghost = document.createElement('div'); ghost.className='ghost';
+    wrap.appendChild(ghost);
+    wrap.setPointerCapture(ev.pointerId);
+  });
+  wrap.addEventListener('pointermove', function(ev){
+    if(!addMode || !start || !ghost) return;
+    var r = img.getBoundingClientRect();
+    var cx = Math.min(Math.max((ev.clientX-r.left)/r.width,0),1);
+    var cy = Math.min(Math.max((ev.clientY-r.top)/r.height,0),1);
+    var x=Math.min(start.x,cx), y=Math.min(start.y,cy);
+    var w=Math.abs(cx-start.x), h=Math.abs(cy-start.y);
+    ghost.style.left=(x*100)+'%'; ghost.style.top=(y*100)+'%';
+    ghost.style.width=(w*100)+'%'; ghost.style.height=(h*100)+'%';
+    ghost._rect={x:x,y:y,w:w,h:h};
+  });
+  wrap.addEventListener('pointerup', function(){
+    if(!addMode || !start) return;
+    var rect = ghost && ghost._rect;
+    if(ghost) ghost.remove(); ghost=null; start=null;
+    if(rect && rect.w>0.004 && rect.h>0.004){
+      pendingRect = rect;
+      openEqModal();
+    }
+  });
+
+  viewer.addEventListener('pointerdown', function(ev){
+    if(addMode) return;
+    if(ev.target.closest('.hs') || ev.target.closest('.pop')) return;
+    pan = {x:ev.clientX, y:ev.clientY, sl:viewer.scrollLeft, st:viewer.scrollTop};
+    viewer.classList.add('panning');
+  });
+  viewer.addEventListener('pointermove', function(ev){
+    if(!pan) return;
+    viewer.scrollLeft = pan.sl - (ev.clientX - pan.x);
+    viewer.scrollTop  = pan.st - (ev.clientY - pan.y);
+  });
+  window.addEventListener('pointerup', function(){ pan=null; viewer.classList.remove('panning'); });
+
+  viewer.addEventListener('wheel', function(ev){
+    if(!ev.ctrlKey) return;
+    ev.preventDefault();
+    zoomBy(ev.deltaY < 0 ? 0.15 : -0.15);
+  }, {passive:false});
+})();
+
+/* ================= EQUIPMENT MODAL ================= */
+function openEqModal(){
+  editingEqId = null;
+  document.getElementById('modal-eq-title').textContent='New equipment';
+  document.getElementById('eq-name').value='';
+  document.getElementById('eq-date').value='';
+  document.getElementById('eq-live').checked=false;
+  document.getElementById('modal-eq').classList.add('open');
+  setTimeout(function(){document.getElementById('eq-name').focus();},50);
+}
+function editEq(id){
+  if(!editMode) return;
+  var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
+  closePopup();
+  editingEqId = id; pendingRect = null;
+  document.getElementById('modal-eq-title').textContent='Edit equipment';
+  document.getElementById('eq-name').value=e.name;
+  document.getElementById('eq-date').value=e.date||'';
+  document.getElementById('eq-live').checked=!!e.energized;
+  document.getElementById('modal-eq').classList.add('open');
+}
+function closeEqModal(){
+  document.getElementById('modal-eq').classList.remove('open');
+  pendingRect=null; editingEqId=null;
+  setAddMode(false);
+}
+function saveEqModal(){
+  var name = document.getElementById('eq-name').value.trim();
+  if(!name){ alert('Enter an equipment tag or name.'); return; }
+  var date = document.getElementById('eq-date').value;
+  var live = document.getElementById('eq-live').checked;
+  if(live && !date) date = todayStr();
+  if(editingEqId){
+    var e = data.equipment.find(function(x){return x.id===editingEqId});
+    if(e){ e.name=name; e.date=date; e.energized=live; }
+  } else if(pendingRect){
+    data.equipment.push({id:uid(), name:name, drawingId:activeDrawing,
+      x:pendingRect.x, y:pendingRect.y, w:pendingRect.w, h:pendingRect.h,
+      energized:live, date:date});
+  }
+  markDirty();
+  document.getElementById('modal-eq').classList.remove('open');
+  pendingRect=null; editingEqId=null;
+  setAddMode(false);
+  renderAll(); renderSettings();
+}
+document.getElementById('eq-name').addEventListener('keydown', function(e){ if(e.key==='Enter') saveEqModal(); });
+document.getElementById('dw-name').addEventListener('keydown', function(e){ if(e.key==='Enter') saveDrawModal(); });
+
+/* ================= STATUS ================= */
+function toggleEnergized(id){
+  if(!editMode) return;
+  var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
+  e.energized = !e.energized;
+  if(e.energized && !e.date) e.date = todayStr();
+  markDirty(); renderAll(); renderSettings();
+  toast(e.name + (e.energized? ' — ENERGIZED' : ' — de-energized'));
+}
+function updateCounts(){
+  var on = data.equipment.filter(function(e){return e.energized}).length;
+  document.getElementById('cnt-on').textContent = on;
+  document.getElementById('cnt-off').textContent = data.equipment.length - on;
+}
+
+/* ================= SETTINGS PAGE ================= */
+function renderSettings(){
+  var tb = document.getElementById('eq-tbody'); tb.innerHTML='';
+  document.getElementById('eq-empty').style.display = data.equipment.length? 'none':'block';
+  var dis = editMode? '' : 'disabled';
+  data.equipment.forEach(function(e){
+    var d = data.drawings.find(function(x){return x.id===e.drawingId});
+    var tr = document.createElement('tr');
+    if(e.energized) tr.className='rowon';
+    tr.innerHTML =
+      '<td><input type="checkbox" '+(e.energized?'checked':'')+' '+dis+' onchange="setEnergized(\''+e.id+'\', this.checked)"></td>'
+      +'<td>'+(editMode
+          ? '<input type="text" class="tag-mono" value="'+escapeAttr(e.name)+'" onchange="setName(\''+e.id+'\', this.value)" style="width:100%;max-width:220px">'
+          : '<span class="tag-mono">'+escapeHtml(e.name)+'</span>')+'</td>'
+      +'<td class="muted">'+(d? escapeHtml(d.name):'—')+'</td>'
+      +'<td>'+(editMode
+          ? '<input type="date" value="'+(e.date||'')+'" onchange="setDate(\''+e.id+'\', this.value)">'
+          : '<span class="muted">'+(e.date||'—')+'</span>')+'</td>'
+      +'<td style="text-align:right;white-space:nowrap">'
+      +'<button class="btn mini" onclick="locateEq(\''+e.id+'\')">Locate</button>'
+      +(editMode? ' <button class="btn ghost mini" onclick="deleteEq(\''+e.id+'\')">Delete</button>':'')
+      +'</td>';
+    tb.appendChild(tr);
+  });
+  var dl = document.getElementById('dlist'); dl.innerHTML='';
+  if(!data.drawings.length){ dl.innerHTML='<span class="muted">No drawings yet.</span>'; }
+  data.drawings.forEach(function(d){
+    var eqs = data.equipment.filter(function(e){return e.drawingId===d.id});
+    var row = document.createElement('div'); row.className='drow';
+    row.innerHTML = '<span class="dname">'+escapeHtml(d.name)+'</span>'
+      +'<span class="dfile">'+escapeHtml(d.file)+'</span>'
+      +'<span class="muted">'+eqs.length+' equipment</span>'
+      +(editMode
+        ? '<button class="btn mini" onclick="renameDrawing(\''+d.id+'\')">Rename</button>'
+          +'<button class="btn ghost mini" onclick="deleteDrawing(\''+d.id+'\')">Remove</button>'
+        : '');
+    dl.appendChild(row);
+  });
+  document.getElementById('btn-add-drawing').style.display = editMode? '' : 'none';
+  document.getElementById('card-publish').style.display = editMode? '' : 'none';
+  document.getElementById('site-name').disabled = !editMode;
+}
+function setEnergized(id, val){
+  if(!editMode) return;
+  var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
+  e.energized = val;
+  if(val && !e.date) e.date = todayStr();
+  markDirty(); renderAll(); renderSettings();
+}
+function setDate(id, val){
+  if(!editMode) return;
+  var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
+  e.date = val; markDirty();
+}
+function setName(id, val){
+  if(!editMode) return;
+  var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
+  if(val.trim()) e.name = val.trim();
+  markDirty(); renderAll();
+}
+function deleteEq(id){
+  if(!editMode) return;
+  var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
+  if(!confirm('Delete "'+e.name+'"?')) return;
+  data.equipment = data.equipment.filter(function(x){return x.id!==id});
+  markDirty(); renderAll(); renderSettings();
+}
+function locateEq(id){
+  var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
+  activeDrawing = e.drawingId; fitted=false;
+  showPage('draw'); renderAll();
+  setTimeout(function(){
+    var el = document.querySelector('.hs[data-eq="'+id+'"]');
+    if(el){ el.scrollIntoView({block:'center', inline:'center', behavior:'smooth'}); el.classList.add('flash'); setTimeout(function(){el.classList.remove('flash');},2200); }
+  }, 400);
+}
+function setSiteName(v){
+  if(!editMode) return;
+  data.site = v.trim();
+  applySiteName();
+  markDirty();
+}
+function applySiteName(){
+  document.getElementById('site-sub').textContent = data.site || 'Energization status board';
+  document.title = (data.site? data.site+' — ':'') + 'DC17 Equipment';
+}
+
+/* ================= PUBLISH ================= */
+function downloadDataJson(){
+  var out = JSON.parse(normalize(data));
+  var blob = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'data.json';
+  a.click();
+  toast('data.json downloaded — upload it to the repo to publish');
+}
+
+/* ================= UTIL ================= */
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g,'&quot;'); }
+function renderAll(){ renderTabs(); renderViewer(); updateCounts(); }
+
+boot();
+</script>
+</body>
+</html>
