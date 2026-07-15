@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DC17 Equipment — Energization Status Board</title>
+<title>ESB — Energization Status Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -151,8 +151,8 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
   <div class="brand">
     <div class="bolt"></div>
     <div>
-      <h1><span>DC17</span> Equipment</h1>
-      <div class="subtitle" id="site-sub">Energization status board</div>
+      <h1><span>ESB</span> Energization Status Board</h1>
+      <div class="subtitle" id="site-sub">Live equipment status</div>
     </div>
   </div>
   <div class="spacer"></div>
@@ -289,7 +289,7 @@ var addMode = false;
 var pendingRect = null;
 var editingEqId = null;
 
-var LS_KEY = 'dc17_equipment_working';
+var LS_KEY = 'esb_working';
 
 function uid(){ return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function toast(msg){
@@ -735,8 +735,8 @@ function setSiteName(v){
   markDirty();
 }
 function applySiteName(){
-  document.getElementById('site-sub').textContent = data.site || 'Energization status board';
-  document.title = (data.site? data.site+' — ':'') + 'DC17 Equipment';
+  document.getElementById('site-sub').textContent = data.site || 'Live equipment status';
+  document.title = (data.site? data.site+' — ':'') + 'ESB';
 }
 
 /* ================= PUBLISH ================= */
