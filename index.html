@@ -87,7 +87,7 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 @keyframes hotpulse{0%,100%{box-shadow:0 0 14px var(--hot-glow), inset 0 0 12px rgba(255,65,54,.35)}50%{box-shadow:0 0 26px var(--hot-glow), inset 0 0 18px rgba(255,65,54,.5)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
 @keyframes flash{0%,100%{outline:none}50%{outline:4px solid var(--amber)}}
-.ghost{position:absolute;border:2px dashed var(--amber);background:rgba(245,166,35,.12);pointer-events:none}
+.dragbox{position:absolute;border:2px dashed var(--amber);background:rgba(245,166,35,.12);pointer-events:none}
 
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;color:var(--muted);text-align:center;padding:30px}
 .empty h2{font-family:'Barlow Condensed';font-size:26px;letter-spacing:2px;text-transform:uppercase;color:var(--text)}
@@ -543,7 +543,7 @@ function setAddMode(on){
     ev.preventDefault();
     var r = img.getBoundingClientRect();
     start = { x:(ev.clientX-r.left)/r.width, y:(ev.clientY-r.top)/r.height };
-    ghost = document.createElement('div'); ghost.className='ghost';
+    ghost = document.createElement('div'); ghost.className='dragbox';
     wrap.appendChild(ghost);
     wrap.setPointerCapture(ev.pointerId);
   });
