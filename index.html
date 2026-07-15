@@ -80,10 +80,18 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .imgerr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--panel);color:var(--muted);text-align:center;padding:20px;font-family:'IBM Plex Mono';font-size:13px;border:1px dashed var(--danger)}
 
 .hs{position:absolute;border:2px solid var(--safe);background:var(--safe-dim);border-radius:2px;cursor:pointer}
-.hs .tag{position:absolute;top:-20px;left:-2px;font-family:'IBM Plex Mono';font-size:11px;font-weight:600;background:#0e1114;color:var(--safe);padding:1px 6px;white-space:nowrap;border:1px solid var(--safe);border-radius:2px}
+.hs .tag{position:absolute;bottom:100%;margin-bottom:2px;left:-2px;font-family:'IBM Plex Mono';font-size:var(--tagfs,11px);font-weight:600;background:#0e1114;color:var(--safe);padding:.1em .5em;white-space:nowrap;border:1px solid var(--safe);border-radius:2px;line-height:1.5;max-width:calc(100% + 14px);overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}
+#hs-layer.tags-hidden .tag{display:none}
 .hs.on{border-color:var(--hot);background:rgba(255,65,54,.28);box-shadow:0 0 14px var(--hot-glow), inset 0 0 12px rgba(255,65,54,.35);animation:hotpulse 1.6s infinite}
 .hs.on .tag{color:#fff;background:var(--hot);border-color:var(--hot)}
 .hs.flash{animation:flash .5s 4}
+.hs.ellipse{border-radius:50%}
+.hs.ellipse .tag{left:50%;transform:translateX(-50%)}
+.dragbox.ellipse{border-radius:50%}
+.shapegrp{display:none;gap:2px;background:#0e1114;border:1px solid var(--line);border-radius:3px;padding:2px}
+.shapegrp.show{display:flex}
+.shapebtn{background:none;border:none;color:var(--muted);padding:4px 10px;cursor:pointer;font-size:14px;border-radius:2px;font-family:'IBM Plex Mono'}
+.shapebtn.sel{background:var(--amber);color:#14171c}
 .hs.editable{cursor:move}
 .hs .rz{position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;background:var(--amber);border:2px solid #14171c;border-radius:3px;cursor:nwse-resize;touch-action:none}
 @keyframes hotpulse{0%,100%{box-shadow:0 0 14px var(--hot-glow), inset 0 0 12px rgba(255,65,54,.35)}50%{box-shadow:0 0 26px var(--hot-glow), inset 0 0 18px rgba(255,65,54,.5)}}
@@ -181,6 +189,10 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
   <div class="dtabs" id="dtabs"></div>
   <div class="toolbar" id="toolbar" style="display:none">
     <button class="btn warn" id="btn-add-eq" onclick="toggleAddMode()" style="display:none">+ Add equipment</button>
+    <div class="shapegrp" id="shapegrp">
+      <button class="shapebtn sel" id="shape-rect" onclick="setShape('rect')" title="Rectangle">▭ Box</button>
+      <button class="shapebtn" id="shape-ellipse" onclick="setShape('ellipse')" title="Circle / ellipse">◯ Circle</button>
+    </div>
     <span class="hint" id="mode-hint"></span>
     <div class="zoomgrp">
       <button class="btn" onclick="zoomBy(-0.25)">−</button>
@@ -307,7 +319,7 @@ function normalize(obj){
   return JSON.stringify({
     site: obj.site||'',
     drawings: (obj.drawings||[]).map(function(d){return {id:d.id,name:d.name,file:d.file}}),
-    equipment: (obj.equipment||[]).map(function(e){return {id:e.id,name:e.name,drawingId:e.drawingId,x:e.x,y:e.y,w:e.w,h:e.h,energized:!!e.energized,date:e.date||''}})
+    equipment: (obj.equipment||[]).map(function(e){return {id:e.id,name:e.name,drawingId:e.drawingId,shape:e.shape||'rect',x:e.x,y:e.y,w:e.w,h:e.h,energized:!!e.energized,date:e.date||''}})
   });
 }
 
@@ -468,6 +480,11 @@ function applyZoom(){
   img.style.height='';
   img.style.width = Math.round(img.naturalWidth*zoom)+'px';
   document.getElementById('zlabel').textContent = Math.round(zoom*100)+'%';
+  /* tag labels scale with zoom; hide when unreadably small */
+  var fs = Math.min(13, 11*zoom);
+  var layer = document.getElementById('hs-layer');
+  layer.style.setProperty('--tagfs', fs.toFixed(1)+'px');
+  layer.classList.toggle('tags-hidden', fs < 6.5);
 }
 function setZoom(newZ, clientX, clientY){
   var img = document.getElementById('dimg');
@@ -499,10 +516,11 @@ function renderHotspots(){
   closePopup();
   data.equipment.filter(function(e){return e.drawingId===activeDrawing}).forEach(function(e){
     var div = document.createElement('div');
-    div.className = 'hs'+(e.energized?' on':'');
+    div.className = 'hs'+(e.energized?' on':'')+(e.shape==='ellipse'?' ellipse':'');
     div.style.left=(e.x*100)+'%'; div.style.top=(e.y*100)+'%';
     div.style.width=(e.w*100)+'%'; div.style.height=(e.h*100)+'%';
     div.setAttribute('data-eq', e.id);
+    div.title = e.name;
     var tag = document.createElement('span'); tag.className='tag'; tag.textContent=e.name;
     div.appendChild(tag);
     if(editMode){
@@ -562,7 +580,7 @@ function duplicateEq(id){
   pendingRect = {
     x: Math.min(src.x + 0.03, 1 - src.w),
     y: Math.min(src.y + 0.03, 1 - src.h),
-    w: src.w, h: src.h
+    w: src.w, h: src.h, shape: (src.shape||'rect')
   };
   editingEqId = null;
   openEqModal(src.name);
@@ -607,7 +625,14 @@ function setAddMode(on){
   var b = document.getElementById('btn-add-eq');
   b.classList.toggle('armed', on);
   b.textContent = on ? 'Cancel add mode' : '+ Add equipment';
-  document.getElementById('mode-hint').textContent = on ? 'Drag a box over the equipment — or single-click to stamp the last box size' : '';
+  document.getElementById('shapegrp').classList.toggle('show', on);
+  document.getElementById('mode-hint').textContent = on ? 'Drag a box over the equipment — or single-click to stamp the last size' : '';
+}
+var curShape = 'rect';
+function setShape(s){
+  curShape = s;
+  document.getElementById('shape-rect').classList.toggle('sel', s==='rect');
+  document.getElementById('shape-ellipse').classList.toggle('sel', s==='ellipse');
 }
 (function(){
   var wrap = document.getElementById('canvas-wrap');
@@ -621,7 +646,7 @@ function setAddMode(on){
     ev.preventDefault();
     var r = img.getBoundingClientRect();
     start = { x:(ev.clientX-r.left)/r.width, y:(ev.clientY-r.top)/r.height };
-    ghost = document.createElement('div'); ghost.className='dragbox';
+    ghost = document.createElement('div'); ghost.className='dragbox'+(curShape==='ellipse'?' ellipse':'');
     wrap.appendChild(ghost);
     wrap.setPointerCapture(ev.pointerId);
   });
@@ -643,7 +668,8 @@ function setAddMode(on){
     if(ghost) ghost.remove(); ghost=null; start=null;
     if(rect && rect.w>0.004 && rect.h>0.004){
       pendingRect = rect;
-      lastRect = {w:rect.w, h:rect.h};
+      pendingRect.shape = curShape;
+      lastRect = {w:rect.w, h:rect.h, shape:curShape};
       openEqModal();
     } else if(lastRect){
       /* single click: stamp a box at the last-used size, centered on the click */
@@ -651,7 +677,7 @@ function setAddMode(on){
       pendingRect = {
         x: Math.min(Math.max(clickPt.x - w/2, 0), 1-w),
         y: Math.min(Math.max(clickPt.y - h/2, 0), 1-h),
-        w: w, h: h
+        w: w, h: h, shape: lastRect.shape || 'rect'
       };
       openEqModal();
     }
@@ -750,7 +776,7 @@ function saveEqModal(){
     var e = data.equipment.find(function(x){return x.id===editingEqId});
     if(e){ e.name=name; e.date=date; e.energized=live; }
   } else if(pendingRect){
-    data.equipment.push({id:uid(), name:name, drawingId:activeDrawing,
+    data.equipment.push({id:uid(), name:name, drawingId:activeDrawing, shape:(pendingRect.shape||'rect'),
       x:pendingRect.x, y:pendingRect.y, w:pendingRect.w, h:pendingRect.h,
       energized:live, date:date});
   }
