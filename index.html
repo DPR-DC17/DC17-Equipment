@@ -14,6 +14,7 @@
   --hot:#ff4136; --hot-glow:rgba(255,65,54,.55);
   --safe:#2ecc71; --safe-dim:rgba(46,204,113,.15);
   --danger:#e5484d;
+  --blue:#4da3ff; --blue-glow:rgba(77,163,255,.45);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -34,6 +35,7 @@ h1 span{color:var(--amber)}
 .dot.red{background:var(--hot);box-shadow:0 0 8px var(--hot-glow)}
 .dot.green{background:var(--safe)}
 .dot.amber{background:var(--amber);box-shadow:0 0 6px rgba(245,166,35,.5)}
+.dot.blue{background:var(--blue);box-shadow:0 0 6px var(--blue-glow)}
 nav{display:flex;gap:6px;align-items:center}
 .navbtn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);padding:8px 18px;cursor:pointer;font-family:'Barlow Condensed';font-size:16px;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;border-radius:3px}
 .navbtn.active{background:var(--amber);color:#14171c;border-color:var(--amber)}
@@ -85,13 +87,18 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 #hs-layer.tags-hidden .tag{display:none}
 .hs.on{border-color:var(--hot);background:rgba(255,65,54,.28);box-shadow:0 0 14px var(--hot-glow), inset 0 0 12px rgba(255,65,54,.35);animation:hotpulse 1.6s infinite}
 .hs.on .tag{color:#fff;background:var(--hot);border-color:var(--hot)}
-.hs.pei{border-color:var(--amber);background:rgba(245,166,35,.22)}
-.hs.pei .tag{color:#14171c;background:var(--amber);border-color:var(--amber)}
+.hs.pei{border-color:var(--blue);background:rgba(77,163,255,.22)}
+.hs.pei .tag{color:#fff;background:#1a5dab;border-color:var(--blue)}
+.hs.inst{border-color:var(--amber);background:rgba(245,166,35,.22)}
+.hs.inst .tag{color:#14171c;background:var(--amber);border-color:var(--amber)}
 .btn.hot{background:var(--hot);border-color:var(--hot);color:#fff;font-weight:600}
+.btn.blue{background:#1a5dab;border-color:var(--blue);color:#fff;font-weight:600}
 .dtab .cnt .c-on{color:var(--hot)}
-.dtab .cnt .c-pei{color:var(--amber)}
+.dtab .cnt .c-pei{color:var(--blue)}
+.dtab .cnt .c-inst{color:var(--amber)}
 select.st-off{border-color:var(--safe);color:var(--safe)}
-select.st-pei{border-color:var(--amber);color:var(--amber)}
+select.st-pei{border-color:var(--blue);color:var(--blue)}
+select.st-inst{border-color:var(--amber);color:var(--amber)}
 select.st-on{border-color:var(--hot);color:var(--hot)}
 .hs.flash{animation:flash .5s 4}
 .hs.ellipse{border-radius:50%}
@@ -121,7 +128,8 @@ select.st-on{border-color:var(--hot);color:var(--hot)}
 .statuschip{display:inline-block;font-family:'IBM Plex Mono';font-size:11px;font-weight:600;padding:2px 8px;border-radius:2px;letter-spacing:1px}
 .statuschip.on{background:var(--hot);color:#fff}
 .statuschip.off{background:var(--safe-dim);color:var(--safe);border:1px solid var(--safe)}
-.statuschip.pei{background:var(--amber);color:#14171c}
+.statuschip.pei{background:#1a5dab;color:#fff;border:1px solid var(--blue)}
+.statuschip.inst{background:var(--amber);color:#14171c}
 
 /* ---------- settings page ---------- */
 .settings-scroll{flex:1;overflow:auto;padding:20px}
@@ -132,7 +140,8 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th{font-family:'Barlow Condensed';text-transform:uppercase;letter-spacing:1.5px;font-size:13px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:2px solid var(--line)}
 td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
 tr.rowon td{background:rgba(255,65,54,.07)}
-tr.rowpei td{background:rgba(245,166,35,.06)}
+tr.rowpei td{background:rgba(77,163,255,.06)}
+tr.rowinst td{background:rgba(245,166,35,.06)}
 tr:hover td{background:rgba(245,166,35,.05)}
 input[type=text],input[type=date],select{background:#0e1114;border:1px solid var(--line);color:var(--text);padding:6px 8px;border-radius:3px;font-family:'IBM Plex Mono';font-size:13px}
 input[type=text]:focus,input[type=date]:focus,select:focus{outline:none;border-color:var(--amber)}
@@ -180,7 +189,8 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
   <div class="spacer"></div>
   <div class="lamps">
     <div class="lamp"><span class="dot red"></span> ENERGIZED <b id="cnt-on">0</b></div>
-    <div class="lamp"><span class="dot amber"></span> PEI WALKED <b id="cnt-pei">0</b></div>
+    <div class="lamp"><span class="dot blue"></span> PEI WALKED <b id="cnt-pei">0</b></div>
+    <div class="lamp"><span class="dot amber"></span> INSTALLED <b id="cnt-inst">0</b></div>
     <div class="lamp"><span class="dot green"></span> DE-ENERGIZED <b id="cnt-off">0</b></div>
   </div>
   <nav>
@@ -232,12 +242,13 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
   <div class="settings-scroll">
     <div class="card">
       <h2>Equipment status</h2>
-      <div class="desc" id="eq-desc">Green = de-energized, amber = PEI walked, red = energized. (Turn on Edit mode to make changes.)</div>
+      <div class="desc" id="eq-desc">Green = de-energized, amber = installed, blue = PEI walked, red = energized. (Turn on Edit mode to make changes.)</div>
       <table>
         <thead><tr>
           <th style="width:150px">Status</th>
           <th>Equipment</th>
           <th>Drawing / Room</th>
+          <th style="width:150px">Date installed</th>
           <th style="width:150px">Date PEI walked</th>
           <th style="width:150px">Date energized</th>
           <th style="width:150px"></th>
@@ -280,10 +291,12 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
     <div class="fg"><label class="fl">Status</label>
       <select id="eq-status">
         <option value="off">De-energized</option>
+        <option value="inst">Installed</option>
         <option value="pei">PEI walked</option>
         <option value="on">Energized</option>
       </select>
     </div>
+    <div class="fg"><label class="fl">Date installed (optional)</label><input type="date" id="eq-instdate"></div>
     <div class="fg"><label class="fl">Date PEI walked (optional)</label><input type="date" id="eq-peidate"></div>
     <div class="fg"><label class="fl">Date energized (optional)</label><input type="date" id="eq-date"></div>
     <div class="mf">
@@ -340,7 +353,7 @@ function normalize(obj){
   return JSON.stringify({
     site: obj.site||'',
     drawings: (obj.drawings||[]).map(function(d){return {id:d.id,name:d.name,file:d.file}}),
-    equipment: (obj.equipment||[]).map(function(e){return {id:e.id,name:e.name,drawingId:e.drawingId,shape:e.shape||'rect',x:e.x,y:e.y,w:e.w,h:e.h,status:e.status||(e.energized?'on':'off'),peiDate:e.peiDate||'',date:e.date||''}})
+    equipment: (obj.equipment||[]).map(function(e){return {id:e.id,name:e.name,drawingId:e.drawingId,shape:e.shape||'rect',x:e.x,y:e.y,w:e.w,h:e.h,status:e.status||(e.energized?'on':'off'),instDate:e.instDate||'',peiDate:e.peiDate||'',date:e.date||''}})
   });
 }
 
@@ -372,6 +385,7 @@ function afterFetch(){
   data.equipment.forEach(function(e){
     if(!e.status) e.status = e.energized ? 'on' : 'off';
     if(e.peiDate === undefined) e.peiDate = '';
+    if(e.instDate === undefined) e.instDate = '';
   });
   if(data.drawings.length) activeDrawing = data.drawings[0].id;
   document.getElementById('site-name').value = data.site||'';
@@ -406,7 +420,7 @@ function toggleEditMode(){
   document.getElementById('btn-add-eq').style.display = editMode? '' : 'none';
   document.getElementById('empty-add').style.display = editMode? '' : 'none';
   document.getElementById('eq-desc').textContent = editMode
-    ? 'Set the status of each item: green = de-energized, amber = PEI walked, red = energized. Download data.json and upload to GitHub to publish.'
+    ? 'Set the status of each item: green = de-energized, amber = installed, blue = PEI walked, red = energized. Download data.json and upload to GitHub to publish.'
     : 'Current status as published. Turn on Edit mode to make changes.';
   renderAll(); renderSettings();
 }
@@ -468,7 +482,8 @@ function renderTabs(){
     var b = document.createElement('button');
     b.className = 'dtab'+(d.id===activeDrawing?' active':'');
     var pei = eqs.filter(function(e){return e.status==='pei'}).length;
-    b.innerHTML = escapeHtml(d.name)+' <span class="cnt" title="energized / PEI walked / total"><b class="c-on">'+live+'</b>·<b class="c-pei">'+pei+'</b>/'+eqs.length+'</span>';
+    var inst = eqs.filter(function(e){return e.status==='inst'}).length;
+    b.innerHTML = escapeHtml(d.name)+' <span class="cnt" title="energized / PEI walked / installed / total"><b class="c-on">'+live+'</b>·<b class="c-pei">'+pei+'</b>·<b class="c-inst">'+inst+'</b>/'+eqs.length+'</span>';
     b.onclick = function(){ activeDrawing=d.id; fitted=false; setAddMode(false); renderAll(); };
     el.appendChild(b);
   });
@@ -543,7 +558,7 @@ function renderHotspots(){
   closePopup();
   data.equipment.filter(function(e){return e.drawingId===activeDrawing}).forEach(function(e){
     var div = document.createElement('div');
-    div.className = 'hs'+(e.status==='on'?' on':(e.status==='pei'?' pei':''))+(e.shape==='ellipse'?' ellipse':'');
+    div.className = 'hs'+(e.status==='on'?' on':e.status==='pei'?' pei':e.status==='inst'?' inst':'')+(e.shape==='ellipse'?' ellipse':'');
     div.style.left=(e.x*100)+'%'; div.style.top=(e.y*100)+'%';
     div.style.width=(e.w*100)+'%'; div.style.height=(e.h*100)+'%';
     div.setAttribute('data-eq', e.id);
@@ -621,9 +636,10 @@ function openPopup(eqId, anchor){
   pop.className='pop'; pop.id='eq-pop';
   var st = e.status||'off';
   var stBtns = '';
-  if(st!=='off') stBtns += '<button class="btn mini" onclick="setStatus(\''+e.id+'\',\'off\')">De-energize</button>';
-  if(st!=='pei') stBtns += '<button class="btn warn mini" onclick="setStatus(\''+e.id+'\',\'pei\')">PEI walked</button>';
-  if(st!=='on')  stBtns += '<button class="btn hot mini" onclick="setStatus(\''+e.id+'\',\'on\')">Energize</button>';
+  if(st!=='off')  stBtns += '<button class="btn mini" onclick="setStatus(\''+e.id+'\',\'off\')">De-energize</button>';
+  if(st!=='inst') stBtns += '<button class="btn warn mini" onclick="setStatus(\''+e.id+'\',\'inst\')">Installed</button>';
+  if(st!=='pei')  stBtns += '<button class="btn blue mini" onclick="setStatus(\''+e.id+'\',\'pei\')">PEI walked</button>';
+  if(st!=='on')   stBtns += '<button class="btn hot mini" onclick="setStatus(\''+e.id+'\',\'on\')">Energize</button>';
   var actions = editMode
     ? '<div class="actions">'+stBtns+'</div>'
       +'<div class="actions">'
@@ -634,6 +650,7 @@ function openPopup(eqId, anchor){
   pop.innerHTML =
     '<h3>'+escapeHtml(e.name)+'</h3>'
     +'<div class="prow">Status: <span class="statuschip '+(st==='off'?'off':st)+'">'+ST_LABEL[st]+'</span></div>'
+    +'<div class="prow">Installed: <b>'+(e.instDate||'—')+'</b></div>'
     +'<div class="prow">PEI walked: <b>'+(e.peiDate||'—')+'</b></div>'
     +'<div class="prow">Date energized: <b>'+(e.date||'—')+'</b></div>'
     + actions;
@@ -783,6 +800,7 @@ function openEqModal(prefillName){
   document.getElementById('modal-eq-title').textContent = prefillName ? 'Duplicate equipment' : 'New equipment';
   document.getElementById('eq-name').value = prefillName || '';
   document.getElementById('eq-status').value='off';
+  document.getElementById('eq-instdate').value='';
   document.getElementById('eq-peidate').value='';
   document.getElementById('eq-date').value='';
   document.getElementById('modal-eq').classList.add('open');
@@ -796,6 +814,7 @@ function editEq(id){
   document.getElementById('modal-eq-title').textContent='Edit equipment';
   document.getElementById('eq-name').value=e.name;
   document.getElementById('eq-status').value=e.status||'off';
+  document.getElementById('eq-instdate').value=e.instDate||'';
   document.getElementById('eq-peidate').value=e.peiDate||'';
   document.getElementById('eq-date').value=e.date||'';
   document.getElementById('modal-eq').classList.add('open');
@@ -810,16 +829,18 @@ function saveEqModal(){
   if(!name){ alert('Enter an equipment tag or name.'); return; }
   var date = document.getElementById('eq-date').value;
   var peiDate = document.getElementById('eq-peidate').value;
+  var instDate = document.getElementById('eq-instdate').value;
   var status = document.getElementById('eq-status').value;
   if(status==='on' && !date) date = todayStr();
   if(status==='pei' && !peiDate) peiDate = todayStr();
+  if(status==='inst' && !instDate) instDate = todayStr();
   if(editingEqId){
     var e = data.equipment.find(function(x){return x.id===editingEqId});
-    if(e){ e.name=name; e.date=date; e.peiDate=peiDate; e.status=status; }
+    if(e){ e.name=name; e.date=date; e.peiDate=peiDate; e.instDate=instDate; e.status=status; }
   } else if(pendingRect){
     data.equipment.push({id:uid(), name:name, drawingId:activeDrawing, shape:(pendingRect.shape||'rect'),
       x:pendingRect.x, y:pendingRect.y, w:pendingRect.w, h:pendingRect.h,
-      status:status, peiDate:peiDate, date:date});
+      status:status, instDate:instDate, peiDate:peiDate, date:date});
   }
   markDirty();
   document.getElementById('modal-eq').classList.remove('open');
@@ -832,13 +853,14 @@ document.getElementById('eq-name').addEventListener('keydown', function(e){ if(e
 document.getElementById('dw-name').addEventListener('keydown', function(e){ if(e.key==='Enter') saveDrawModal(); });
 
 /* ================= STATUS ================= */
-var ST_LABEL = {off:'DE-ENERGIZED', pei:'PEI WALKED', on:'ENERGIZED'};
+var ST_LABEL = {off:'DE-ENERGIZED', inst:'INSTALLED', pei:'PEI WALKED', on:'ENERGIZED'};
 function setStatus(id, s){
   if(!editMode) return;
   var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
   e.status = s;
+  if(s==='inst' && !e.instDate) e.instDate = todayStr();
   if(s==='pei' && !e.peiDate) e.peiDate = todayStr();
-  if(s==='on'){ if(!e.date) e.date = todayStr(); if(!e.peiDate) e.peiDate = e.peiDate; }
+  if(s==='on' && !e.date) e.date = todayStr();
   markDirty(); renderAll(); renderSettings();
   toast(e.name + ' — ' + ST_LABEL[s]);
 }
@@ -846,9 +868,11 @@ function setStatus(id, s){
 function updateCounts(){
   var on = data.equipment.filter(function(e){return e.status==='on'}).length;
   var pei = data.equipment.filter(function(e){return e.status==='pei'}).length;
+  var inst = data.equipment.filter(function(e){return e.status==='inst'}).length;
   document.getElementById('cnt-on').textContent = on;
   document.getElementById('cnt-pei').textContent = pei;
-  document.getElementById('cnt-off').textContent = data.equipment.length - on - pei;
+  document.getElementById('cnt-inst').textContent = inst;
+  document.getElementById('cnt-off').textContent = data.equipment.length - on - pei - inst;
 }
 
 /* ================= SETTINGS PAGE ================= */
@@ -860,11 +884,12 @@ function renderSettings(){
     var d = data.drawings.find(function(x){return x.id===e.drawingId});
     var st = e.status||'off';
     var tr = document.createElement('tr');
-    if(st==='on') tr.className='rowon'; else if(st==='pei') tr.className='rowpei';
+    if(st==='on') tr.className='rowon'; else if(st==='pei') tr.className='rowpei'; else if(st==='inst') tr.className='rowinst';
     tr.innerHTML =
       '<td>'+(editMode
           ? '<select class="st-'+st+'" onchange="setStatus(\''+e.id+'\', this.value)">'
             +'<option value="off"'+(st==='off'?' selected':'')+'>De-energized</option>'
+            +'<option value="inst"'+(st==='inst'?' selected':'')+'>Installed</option>'
             +'<option value="pei"'+(st==='pei'?' selected':'')+'>PEI walked</option>'
             +'<option value="on"'+(st==='on'?' selected':'')+'>Energized</option>'
             +'</select>'
@@ -873,6 +898,9 @@ function renderSettings(){
           ? '<input type="text" class="tag-mono" value="'+escapeAttr(e.name)+'" onchange="setName(\''+e.id+'\', this.value)" style="width:100%;max-width:220px">'
           : '<span class="tag-mono">'+escapeHtml(e.name)+'</span>')+'</td>'
       +'<td class="muted">'+(d? escapeHtml(d.name):'—')+'</td>'
+      +'<td>'+(editMode
+          ? '<input type="date" value="'+(e.instDate||'')+'" onchange="setInstDate(\''+e.id+'\', this.value)">'
+          : '<span class="muted">'+(e.instDate||'—')+'</span>')+'</td>'
       +'<td>'+(editMode
           ? '<input type="date" value="'+(e.peiDate||'')+'" onchange="setPeiDate(\''+e.id+'\', this.value)">'
           : '<span class="muted">'+(e.peiDate||'—')+'</span>')+'</td>'
@@ -902,6 +930,11 @@ function renderSettings(){
   document.getElementById('btn-add-drawing').style.display = editMode? '' : 'none';
   document.getElementById('card-publish').style.display = editMode? '' : 'none';
   document.getElementById('site-name').disabled = !editMode;
+}
+function setInstDate(id, val){
+  if(!editMode) return;
+  var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
+  e.instDate = val; markDirty();
 }
 function setPeiDate(id, val){
   if(!editMode) return;
