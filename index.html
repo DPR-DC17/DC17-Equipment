@@ -254,6 +254,10 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
     <div class="card">
       <h2>Equipment status</h2>
       <div class="desc" id="eq-desc">Green = de-energized, amber = installed, blue = PEI walked, violet = energizing today, red = energized. (Turn on Edit mode to make changes.)</div>
+      <div style="display:flex;gap:8px;margin:0 0 14px 13px">
+        <button class="btn" onclick="printReport()">🖨 Print report</button>
+        <button class="btn" onclick="exportCsv()">Export CSV</button>
+      </div>
       <table>
         <thead><tr>
           <th style="width:150px">Status</th>
@@ -994,6 +998,86 @@ function setSiteName(v){
 function applySiteName(){
   document.getElementById('site-sub').textContent = data.site || 'Live equipment status';
   document.title = (data.site? data.site+' — ':'') + 'ESB';
+}
+
+
+/* ================= REPORT / CSV ================= */
+function reportRows(){
+  /* [{drawingName, items:[equipment sorted by name]}] in drawing order, plus unassigned */
+  var groups = [];
+  data.drawings.forEach(function(d){
+    var items = data.equipment.filter(function(e){return e.drawingId===d.id})
+      .slice().sort(function(a,b){return a.name.localeCompare(b.name, undefined, {numeric:true})});
+    if(items.length) groups.push({name:d.name, items:items});
+  });
+  var orphans = data.equipment.filter(function(e){return !data.drawings.some(function(d){return d.id===e.drawingId})});
+  if(orphans.length) groups.push({name:'(no drawing)', items:orphans});
+  return groups;
+}
+function printReport(){
+  var w = window.open('', '_blank');
+  if(!w){ alert('Your browser blocked the report window — allow pop-ups for this site and try again.'); return; }
+  var C = {off:'#1e7e42', inst:'#a86e00', pei:'#1a5dab', today:'#7d2fb0', on:'#c22525'};
+  var counts = {off:0, inst:0, pei:0, today:0, on:0};
+  data.equipment.forEach(function(e){ counts[e.status||'off'] = (counts[e.status||'off']||0)+1; });
+  var now = new Date();
+  var h = '<!DOCTYPE html><html><head><title>Energization Status Report</title><style>'
+    +'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:28px;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'h1{font-size:20px;margin:0 0 2px}'
+    +'.sub{color:#555;margin-bottom:4px}'
+    +'.gen{color:#777;font-size:11px;margin-bottom:14px}'
+    +'.summary{margin:0 0 18px;font-size:12px}'
+    +'.summary b{padding:2px 8px;border-radius:3px;color:#fff;margin-right:10px;white-space:nowrap}'
+    +'h2{font-size:14px;border-bottom:2px solid #333;padding-bottom:3px;margin:20px 0 6px}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:8px}'
+    +'th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:left;border-bottom:1.5px solid #333;padding:5px 8px;color:#333}'
+    +'td{border-bottom:1px solid #ccc;padding:5px 8px;vertical-align:middle}'
+    +'.st{display:inline-block;padding:1px 8px;border-radius:3px;color:#fff;font-size:11px;font-weight:bold;letter-spacing:.5px}'
+    +'tr{page-break-inside:avoid}'
+    +'@media print{h2{page-break-after:avoid}}'
+    +'</style></head><body>'
+    +'<h1>Energization Status Report</h1>'
+    +'<div class="sub">'+escapeHtml(data.site || 'ESB Energization Status Board')+'</div>'
+    +'<div class="gen">Generated '+now.toLocaleDateString()+' '+now.toLocaleTimeString()+' &middot; '+data.equipment.length+' equipment items</div>'
+    +'<div class="summary">'
+    +'<b style="background:'+C.on+'">ENERGIZED: '+counts.on+'</b>'
+    +'<b style="background:'+C.today+'">ENERGIZING TODAY: '+counts.today+'</b>'
+    +'<b style="background:'+C.pei+'">PEI WALKED: '+counts.pei+'</b>'
+    +'<b style="background:'+C.inst+'">INSTALLED: '+counts.inst+'</b>'
+    +'<b style="background:'+C.off+'">DE-ENERGIZED: '+counts.off+'</b>'
+    +'</div>';
+  reportRows().forEach(function(g){
+    h += '<h2>'+escapeHtml(g.name)+'</h2>'
+      +'<table><tr><th style="width:26%">Equipment</th><th style="width:20%">Status</th>'
+      +'<th style="width:18%">Date installed</th><th style="width:18%">Date PEI walked</th><th style="width:18%">Date energized</th></tr>';
+    g.items.forEach(function(e){
+      var st = e.status||'off';
+      h += '<tr><td><b>'+escapeHtml(e.name)+'</b></td>'
+        +'<td><span class="st" style="background:'+C[st]+'">'+ST_LABEL[st]+'</span></td>'
+        +'<td>'+(e.instDate||'&mdash;')+'</td>'
+        +'<td>'+(e.peiDate||'&mdash;')+'</td>'
+        +'<td>'+(e.date||'&mdash;')+'</td></tr>';
+    });
+    h += '</table>';
+  });
+  h += '<script>window.onload=function(){window.print();}<\/script></body></html>';
+  w.document.write(h);
+  w.document.close();
+}
+function exportCsv(){
+  var q = function(s){ s = String(s==null?'':s); return '"'+s.replace(/"/g,'""')+'"'; };
+  var lines = ['Drawing,Equipment,Status,Date Installed,Date PEI Walked,Date Energized'];
+  reportRows().forEach(function(g){
+    g.items.forEach(function(e){
+      lines.push([q(g.name), q(e.name), q(ST_LABEL[e.status||'off']), q(e.instDate), q(e.peiDate), q(e.date)].join(','));
+    });
+  });
+  var blob = new Blob([lines.join('\r\n')], {type:'text/csv'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'energization-status-'+todayStr()+'.csv';
+  a.click();
+  toast('CSV exported');
 }
 
 /* ================= PUBLISH ================= */
