@@ -16,6 +16,7 @@
   --danger:#e5484d;
   --blue:#4da3ff; --blue-glow:rgba(77,163,255,.45);
   --violet:#c95eff; --violet-glow:rgba(201,94,255,.55);
+  --planned:#111318;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -38,6 +39,7 @@ h1 span{color:var(--amber)}
 .dot.amber{background:var(--amber);box-shadow:0 0 6px rgba(245,166,35,.5)}
 .dot.blue{background:var(--blue);box-shadow:0 0 6px var(--blue-glow)}
 .dot.violet{background:var(--violet);box-shadow:0 0 6px var(--violet-glow)}
+.dot.black{background:#000;border:2px solid #777}
 nav{display:flex;gap:6px;align-items:center}
 .navbtn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);padding:8px 18px;cursor:pointer;font-family:'Barlow Condensed';font-size:16px;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;border-radius:3px}
 .navbtn.active{background:var(--amber);color:#14171c;border-color:var(--amber)}
@@ -95,18 +97,23 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .hs.inst .tag{color:#14171c;background:var(--amber);border-color:var(--amber)}
 .hs.today{border-color:var(--violet);background:rgba(201,94,255,.28);animation:todaypulse .9s infinite}
 .hs.today .tag{color:#fff;background:#7d2fb0;border-color:var(--violet)}
+.hs.planned{border-color:#000;background:rgba(0,0,0,.4);border-style:dashed}
+.hs.planned .tag{color:#fff;background:#000;border-color:#000}
 @keyframes todaypulse{0%,100%{box-shadow:0 0 10px var(--violet-glow), inset 0 0 8px rgba(201,94,255,.3)}50%{box-shadow:0 0 26px var(--violet-glow), inset 0 0 18px rgba(201,94,255,.55)}}
 .btn.hot{background:var(--hot);border-color:var(--hot);color:#fff;font-weight:600}
 .btn.blue{background:#1a5dab;border-color:var(--blue);color:#fff;font-weight:600}
 .btn.violet{background:#7d2fb0;border-color:var(--violet);color:#fff;font-weight:600}
+.btn.black{background:#000;border:1px solid #666;color:#fff;font-weight:600}
 .dtab .cnt .c-on{color:var(--hot)}
 .dtab .cnt .c-pei{color:var(--blue)}
 .dtab .cnt .c-inst{color:var(--amber)}
 .dtab .cnt .c-today{color:var(--violet)}
+.dtab .cnt .c-planned{color:#999}
 select.st-off{border-color:var(--safe);color:var(--safe)}
 select.st-pei{border-color:var(--blue);color:var(--blue)}
 select.st-inst{border-color:var(--amber);color:var(--amber)}
 select.st-today{border-color:var(--violet);color:var(--violet)}
+select.st-planned{border-color:#777;color:#ccc}
 select.st-on{border-color:var(--hot);color:var(--hot)}
 .hs.flash{animation:flash .5s 4}
 .hs.ellipse{border-radius:50%}
@@ -139,6 +146,7 @@ select.st-on{border-color:var(--hot);color:var(--hot)}
 .statuschip.pei{background:#1a5dab;color:#fff;border:1px solid var(--blue)}
 .statuschip.inst{background:var(--amber);color:#14171c}
 .statuschip.today{background:#7d2fb0;color:#fff;border:1px solid var(--violet)}
+.statuschip.planned{background:#000;color:#fff;border:1px solid #777}
 
 /* ---------- settings page ---------- */
 .settings-scroll{flex:1;overflow:auto;padding:20px}
@@ -156,6 +164,7 @@ tr.rowon td{background:rgba(255,65,54,.07)}
 tr.rowpei td{background:rgba(77,163,255,.06)}
 tr.rowinst td{background:rgba(245,166,35,.06)}
 tr.rowtoday td{background:rgba(201,94,255,.07)}
+tr.rowplanned td{background:rgba(255,255,255,.03)}
 tr:hover td{background:rgba(245,166,35,.05)}
 input[type=text],input[type=date],select{background:#0e1114;border:1px solid var(--line);color:var(--text);padding:6px 8px;border-radius:3px;font-family:'IBM Plex Mono';font-size:13px}
 input[type=text]:focus,input[type=date]:focus,select:focus{outline:none;border-color:var(--amber)}
@@ -207,6 +216,7 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
     <div class="lamp"><span class="dot blue"></span> PEI WALKED <b id="cnt-pei">0</b></div>
     <div class="lamp"><span class="dot amber"></span> INSTALLED <b id="cnt-inst">0</b></div>
     <div class="lamp"><span class="dot green"></span> DE-ENERGIZED <b id="cnt-off">0</b></div>
+    <div class="lamp"><span class="dot black"></span> NOT INSTALLED <b id="cnt-planned">0</b></div>
   </div>
   <nav>
     <button class="navbtn active" id="nav-draw" onclick="showPage('draw')">Drawings</button>
@@ -257,7 +267,7 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
   <div class="settings-scroll">
     <div class="card">
       <h2>Equipment status</h2>
-      <div class="desc" id="eq-desc">Green = de-energized, amber = installed, blue = PEI walked, violet = energizing today, red = energized. (Turn on Edit mode to make changes.)</div>
+      <div class="desc" id="eq-desc">Black = not installed yet, green = de-energized, amber = installed, blue = PEI walked, violet = energizing today, red = energized. (Turn on Edit mode to make changes.)</div>
       <div style="display:flex;gap:8px;margin:0 0 14px 13px">
         <button class="btn" onclick="printReport()">🖨 Print report</button>
         <button class="btn" onclick="exportCsv()">Export CSV</button>
@@ -309,6 +319,7 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
     <div class="fg"><label class="fl">Equipment tag / name</label><input type="text" id="eq-name" placeholder="e.g. SWBD-1A, UPS-2, ATS-3"></div>
     <div class="fg"><label class="fl">Status</label>
       <select id="eq-status">
+        <option value="planned">Not installed</option>
         <option value="off">De-energized</option>
         <option value="inst">Installed</option>
         <option value="pei">PEI walked</option>
@@ -447,7 +458,7 @@ function toggleEditMode(){
   document.getElementById('btn-add-eq').style.display = editMode? '' : 'none';
   document.getElementById('empty-add').style.display = editMode? '' : 'none';
   document.getElementById('eq-desc').textContent = editMode
-    ? 'Set the status of each item: green = de-energized, amber = installed, blue = PEI walked, violet = energizing today, red = energized. Download data.json and upload to GitHub to publish.'
+    ? 'Set the status of each item: black = not installed yet, green = de-energized, amber = installed, blue = PEI walked, violet = energizing today, red = energized. Download data.json and upload to GitHub to publish.'
     : 'Current status as published. Turn on Edit mode to make changes.';
   renderAll(); renderSettings();
 }
@@ -511,7 +522,8 @@ function renderTabs(){
     var pei = eqs.filter(function(e){return e.status==='pei'}).length;
     var inst = eqs.filter(function(e){return e.status==='inst'}).length;
     var tdy = eqs.filter(function(e){return e.status==='today'}).length;
-    b.innerHTML = escapeHtml(d.name)+' <span class="cnt" title="energized / energizing today / PEI walked / installed / total"><b class="c-on">'+live+'</b>·<b class="c-today">'+tdy+'</b>·<b class="c-pei">'+pei+'</b>·<b class="c-inst">'+inst+'</b>/'+eqs.length+'</span>';
+    var pln = eqs.filter(function(e){return e.status==='planned'}).length;
+    b.innerHTML = escapeHtml(d.name)+' <span class="cnt" title="energized / energizing today / PEI walked / installed / not installed / total"><b class="c-on">'+live+'</b>·<b class="c-today">'+tdy+'</b>·<b class="c-pei">'+pei+'</b>·<b class="c-inst">'+inst+'</b>·<b class="c-planned">'+pln+'</b>/'+eqs.length+'</span>';
     b.onclick = function(){ activeDrawing=d.id; fitted=false; setAddMode(false); renderAll(); };
     el.appendChild(b);
   });
@@ -586,7 +598,7 @@ function renderHotspots(){
   closePopup();
   data.equipment.filter(function(e){return e.drawingId===activeDrawing}).forEach(function(e){
     var div = document.createElement('div');
-    div.className = 'hs'+(e.status==='on'?' on':e.status==='today'?' today':e.status==='pei'?' pei':e.status==='inst'?' inst':'')+(e.shape==='ellipse'?' ellipse':'');
+    div.className = 'hs'+(e.status==='on'?' on':e.status==='today'?' today':e.status==='pei'?' pei':e.status==='inst'?' inst':e.status==='planned'?' planned':'')+(e.shape==='ellipse'?' ellipse':'');
     div.style.left=(e.x*100)+'%'; div.style.top=(e.y*100)+'%';
     div.style.width=(e.w*100)+'%'; div.style.height=(e.h*100)+'%';
     div.setAttribute('data-eq', e.id);
@@ -664,6 +676,7 @@ function openPopup(eqId, anchor){
   pop.className='pop'; pop.id='eq-pop';
   var st = e.status||'off';
   var stBtns = '';
+  if(st!=='planned') stBtns += '<button class="btn black mini" onclick="setStatus(\''+e.id+'\',\'planned\')">Not installed</button>';
   if(st!=='off')  stBtns += '<button class="btn mini" onclick="setStatus(\''+e.id+'\',\'off\')">De-energize</button>';
   if(st!=='inst') stBtns += '<button class="btn warn mini" onclick="setStatus(\''+e.id+'\',\'inst\')">Installed</button>';
   if(st!=='pei')  stBtns += '<button class="btn blue mini" onclick="setStatus(\''+e.id+'\',\'pei\')">PEI walked</button>';
@@ -882,7 +895,7 @@ document.getElementById('eq-name').addEventListener('keydown', function(e){ if(e
 document.getElementById('dw-name').addEventListener('keydown', function(e){ if(e.key==='Enter') saveDrawModal(); });
 
 /* ================= STATUS ================= */
-var ST_LABEL = {off:'DE-ENERGIZED', inst:'INSTALLED', pei:'PEI WALKED', today:'ENERGIZING TODAY', on:'ENERGIZED'};
+var ST_LABEL = {planned:'NOT INSTALLED', off:'DE-ENERGIZED', inst:'INSTALLED', pei:'PEI WALKED', today:'ENERGIZING TODAY', on:'ENERGIZED'};
 function setStatus(id, s){
   if(!editMode) return;
   var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
@@ -899,11 +912,13 @@ function updateCounts(){
   var pei = data.equipment.filter(function(e){return e.status==='pei'}).length;
   var inst = data.equipment.filter(function(e){return e.status==='inst'}).length;
   var today = data.equipment.filter(function(e){return e.status==='today'}).length;
+  var planned = data.equipment.filter(function(e){return e.status==='planned'}).length;
   document.getElementById('cnt-on').textContent = on;
   document.getElementById('cnt-today').textContent = today;
   document.getElementById('cnt-pei').textContent = pei;
   document.getElementById('cnt-inst').textContent = inst;
-  document.getElementById('cnt-off').textContent = data.equipment.length - on - pei - inst - today;
+  document.getElementById('cnt-planned').textContent = planned;
+  document.getElementById('cnt-off').textContent = data.equipment.length - on - pei - inst - today - planned;
 }
 
 /* ================= SETTINGS PAGE ================= */
@@ -911,7 +926,7 @@ function renderSettings(){
   var tb = document.getElementById('eq-tbody'); tb.innerHTML='';
   document.getElementById('eq-empty').style.display = data.equipment.length? 'none':'block';
   var dis = editMode? '' : 'disabled';
-  var STATUS_ORDER = {off:0, inst:1, pei:2, today:3, on:4};
+  var STATUS_ORDER = {planned:0, off:1, inst:2, pei:3, today:4, on:5};
   var rows = data.equipment.map(function(e){
     var d = data.drawings.find(function(x){return x.id===e.drawingId});
     return {e:e, d:d};
@@ -943,10 +958,11 @@ function renderSettings(){
     var e = row.e, d = row.d;
     var st = e.status||'off';
     var tr = document.createElement('tr');
-    if(st==='on') tr.className='rowon'; else if(st==='today') tr.className='rowtoday'; else if(st==='pei') tr.className='rowpei'; else if(st==='inst') tr.className='rowinst';
+    if(st==='on') tr.className='rowon'; else if(st==='today') tr.className='rowtoday'; else if(st==='pei') tr.className='rowpei'; else if(st==='inst') tr.className='rowinst'; else if(st==='planned') tr.className='rowplanned';
     tr.innerHTML =
       '<td>'+(editMode
           ? '<select class="st-'+st+'" onchange="setStatus(\''+e.id+'\', this.value)">'
+            +'<option value="planned"'+(st==='planned'?' selected':'')+'>Not installed</option>'
             +'<option value="off"'+(st==='off'?' selected':'')+'>De-energized</option>'
             +'<option value="inst"'+(st==='inst'?' selected':'')+'>Installed</option>'
             +'<option value="pei"'+(st==='pei'?' selected':'')+'>PEI walked</option>'
@@ -1056,8 +1072,8 @@ function reportRows(){
 function printReport(){
   var w = window.open('', '_blank');
   if(!w){ alert('Your browser blocked the report window — allow pop-ups for this site and try again.'); return; }
-  var C = {off:'#1e7e42', inst:'#a86e00', pei:'#1a5dab', today:'#7d2fb0', on:'#c22525'};
-  var counts = {off:0, inst:0, pei:0, today:0, on:0};
+  var C = {planned:'#000000', off:'#1e7e42', inst:'#a86e00', pei:'#1a5dab', today:'#7d2fb0', on:'#c22525'};
+  var counts = {planned:0, off:0, inst:0, pei:0, today:0, on:0};
   data.equipment.forEach(function(e){ counts[e.status||'off'] = (counts[e.status||'off']||0)+1; });
   var now = new Date();
   var h = '<!DOCTYPE html><html><head><title>Energization Status Report</title><style>'
@@ -1084,6 +1100,7 @@ function printReport(){
     +'<b style="background:'+C.pei+'">PEI WALKED: '+counts.pei+'</b>'
     +'<b style="background:'+C.inst+'">INSTALLED: '+counts.inst+'</b>'
     +'<b style="background:'+C.off+'">DE-ENERGIZED: '+counts.off+'</b>'
+    +'<b style="background:'+C.planned+';border:1px solid #999">NOT INSTALLED: '+counts.planned+'</b>'
     +'</div>';
   reportRows().forEach(function(g){
     h += '<h2>'+escapeHtml(g.name)+'</h2>'
