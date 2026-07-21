@@ -147,6 +147,10 @@ select.st-on{border-color:var(--hot);color:var(--hot)}
 .card .desc{font-size:13px;color:var(--muted);margin-bottom:14px;padding-left:13px}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{font-family:'Barlow Condensed';text-transform:uppercase;letter-spacing:1.5px;font-size:13px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:2px solid var(--line)}
+th.sortable{cursor:pointer;user-select:none;position:relative}
+th.sortable:hover{color:var(--amber)}
+th.sortable.active{color:var(--amber)}
+.sarrow{display:inline-block;width:10px;margin-left:2px;font-size:11px}
 td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
 tr.rowon td{background:rgba(255,65,54,.07)}
 tr.rowpei td{background:rgba(77,163,255,.06)}
@@ -260,12 +264,12 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
       </div>
       <table>
         <thead><tr>
-          <th style="width:150px">Status</th>
-          <th>Equipment</th>
-          <th>Drawing / Room</th>
-          <th style="width:150px">Date installed</th>
-          <th style="width:150px">Date PEI walked</th>
-          <th style="width:150px">Date energized</th>
+          <th style="width:150px" class="sortable" onclick="setSort('status')">Status<span class="sarrow" id="sarrow-status"></span></th>
+          <th class="sortable" onclick="setSort('name')">Equipment<span class="sarrow" id="sarrow-name"></span></th>
+          <th class="sortable" onclick="setSort('drawing')">Drawing / Room<span class="sarrow" id="sarrow-drawing"></span></th>
+          <th style="width:150px" class="sortable" onclick="setSort('instDate')">Date installed<span class="sarrow" id="sarrow-instDate"></span></th>
+          <th style="width:150px" class="sortable" onclick="setSort('peiDate')">Date PEI walked<span class="sarrow" id="sarrow-peiDate"></span></th>
+          <th style="width:150px" class="sortable" onclick="setSort('date')">Date energized<span class="sarrow" id="sarrow-date"></span></th>
           <th style="width:150px"></th>
         </tr></thead>
         <tbody id="eq-tbody"></tbody>
@@ -347,6 +351,13 @@ var data = { site:'', drawings:[], equipment:[] };
 var published = null;      // last fetched data.json
 var hasLocal = false;      // unpublished edits exist
 var editMode = false;
+var sortCol = 'name';
+var sortDir = 'asc';
+function setSort(col){
+  if(sortCol === col){ sortDir = (sortDir==='asc' ? 'desc' : 'asc'); }
+  else { sortCol = col; sortDir = 'asc'; }
+  renderSettings();
+}
 var activeDrawing = null;
 var zoom = 1, fitted = false;
 var addMode = false;
@@ -900,8 +911,36 @@ function renderSettings(){
   var tb = document.getElementById('eq-tbody'); tb.innerHTML='';
   document.getElementById('eq-empty').style.display = data.equipment.length? 'none':'block';
   var dis = editMode? '' : 'disabled';
-  data.equipment.forEach(function(e){
+  var STATUS_ORDER = {off:0, inst:1, pei:2, today:3, on:4};
+  var rows = data.equipment.map(function(e){
     var d = data.drawings.find(function(x){return x.id===e.drawingId});
+    return {e:e, d:d};
+  });
+  rows.sort(function(a,b){
+    var av, bv;
+    switch(sortCol){
+      case 'status':
+        av = STATUS_ORDER[a.e.status||'off']; bv = STATUS_ORDER[b.e.status||'off']; break;
+      case 'drawing':
+        av = (a.d? a.d.name : ''); bv = (b.d? b.d.name : ''); break;
+      case 'instDate': case 'peiDate': case 'date':
+        av = a.e[sortCol]||''; bv = b.e[sortCol]||''; break;
+      default:
+        av = a.e.name||''; bv = b.e.name||'';
+    }
+    var cmp;
+    if(typeof av === 'number') cmp = av - bv;
+    else cmp = String(av).localeCompare(String(bv), undefined, {numeric:true, sensitivity:'base'});
+    return sortDir==='asc' ? cmp : -cmp;
+  });
+  document.querySelectorAll('th.sortable').forEach(function(th){ th.classList.remove('active'); });
+  document.querySelectorAll('.sarrow').forEach(function(s){ s.textContent=''; });
+  var activeTh = document.getElementById('sarrow-'+sortCol);
+  if(activeTh) activeTh.textContent = sortDir==='asc' ? '▲' : '▼';
+  var activeHeader = activeTh && activeTh.closest('th');
+  if(activeHeader) activeHeader.classList.add('active');
+  rows.forEach(function(row){
+    var e = row.e, d = row.d;
     var st = e.status||'off';
     var tr = document.createElement('tr');
     if(st==='on') tr.className='rowon'; else if(st==='today') tr.className='rowtoday'; else if(st==='pei') tr.className='rowpei'; else if(st==='inst') tr.className='rowinst';
