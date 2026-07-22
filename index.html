@@ -353,19 +353,19 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
   </div>
 </div>
 
-<!-- add drawing modal -->
+<!-- add/edit drawing modal -->
 <div class="ov" id="modal-draw">
   <div class="modal">
-    <h3>Add drawing</h3>
+    <h3 id="modal-draw-title">Add drawing</h3>
     <div class="fg">
       <label class="fl">Image filename in drawings/ folder</label>
       <input type="text" id="dw-file" placeholder="e.g. elec-room-1.jpg">
-      <div class="fnote">The image must already be uploaded to the repo's <b>drawings/</b> folder (JPG or PNG).</div>
+      <div class="fnote">The image must already be uploaded to the repo's <b>drawings/</b> folder (JPG or PNG). Fix a typo, wrong extension, or corrupt file by pointing this at the replacement image — no need to delete and re-add.</div>
     </div>
     <div class="fg"><label class="fl">Display name</label><input type="text" id="dw-name" placeholder="e.g. Elec Room 1"></div>
     <div class="mf">
-      <button class="btn ghost" onclick="document.getElementById('modal-draw').classList.remove('open')">Cancel</button>
-      <button class="btn warn" onclick="saveDrawModal()">Add drawing</button>
+      <button class="btn ghost" onclick="closeDrawModal()">Cancel</button>
+      <button class="btn warn" id="btn-savedraw" onclick="saveDrawModal()">Add drawing</button>
     </div>
   </div>
 </div>
@@ -581,12 +581,31 @@ function showPage(p){
 }
 
 /* ================= DRAWINGS ================= */
+var editingDrawId = null;
 function promptAddDrawing(){
   if(!editMode){ toast('Turn on Edit mode first'); return; }
+  editingDrawId = null;
+  document.getElementById('modal-draw-title').textContent = 'Add drawing';
+  document.getElementById('btn-savedraw').textContent = 'Add drawing';
   document.getElementById('dw-file').value='';
   document.getElementById('dw-name').value='';
   document.getElementById('modal-draw').classList.add('open');
   setTimeout(function(){document.getElementById('dw-file').focus();},50);
+}
+function editDrawing(id){
+  if(!editMode) return;
+  var d = data.drawings.find(function(x){return x.id===id}); if(!d) return;
+  editingDrawId = id;
+  document.getElementById('modal-draw-title').textContent = 'Edit drawing';
+  document.getElementById('btn-savedraw').textContent = 'Save changes';
+  document.getElementById('dw-file').value = d.file.replace(/^drawings\//,'');
+  document.getElementById('dw-name').value = d.name;
+  document.getElementById('modal-draw').classList.add('open');
+  setTimeout(function(){document.getElementById('dw-file').focus();},50);
+}
+function closeDrawModal(){
+  document.getElementById('modal-draw').classList.remove('open');
+  editingDrawId = null;
 }
 function saveDrawModal(){
   var file = document.getElementById('dw-file').value.trim();
@@ -594,6 +613,16 @@ function saveDrawModal(){
   if(!file){ alert('Enter the image filename.'); return; }
   if(!name) name = file.replace(/\.(png|jpe?g|webp)$/i,'');
   if(!/^drawings\//.test(file)) file = 'drawings/'+file;
+  if(editingDrawId){
+    var d = data.drawings.find(function(x){return x.id===editingDrawId});
+    if(d){ d.file = file; d.name = name; }
+    editingDrawId = null;
+    markDirty();
+    document.getElementById('modal-draw').classList.remove('open');
+    renderAll(); renderSettings();
+    toast('Drawing updated: '+name);
+    return;
+  }
   var d = {id:uid(), name:name, file:file};
   data.drawings.push(d);
   activeDrawing = d.id; fitted = false;
@@ -601,12 +630,6 @@ function saveDrawModal(){
   document.getElementById('modal-draw').classList.remove('open');
   renderAll(); renderSettings();
   toast('Drawing added: '+name);
-}
-function renameDrawing(id){
-  if(!editMode) return;
-  var d = data.drawings.find(function(x){return x.id===id}); if(!d) return;
-  var n = prompt('Rename drawing:', d.name); if(!n) return;
-  d.name = n; markDirty(); renderAll(); renderSettings();
 }
 function deleteDrawing(id){
   if(!editMode) return;
@@ -1118,7 +1141,7 @@ function renderSettings(){
       +(editMode
         ? '<button class="btn mini" '+(idx===0?'disabled':'')+' onclick="moveDrawing(\''+d.id+'\',-1)" title="Move up">▲</button>'
           +'<button class="btn mini" '+(idx===data.drawings.length-1?'disabled':'')+' onclick="moveDrawing(\''+d.id+'\',1)" title="Move down">▼</button>'
-          +'<button class="btn mini" onclick="renameDrawing(\''+d.id+'\')">Rename</button>'
+          +'<button class="btn mini" onclick="editDrawing(\''+d.id+'\')">Edit</button>'
           +'<button class="btn ghost mini" onclick="deleteDrawing(\''+d.id+'\')">Remove</button>'
         : '');
     dl.appendChild(row);
