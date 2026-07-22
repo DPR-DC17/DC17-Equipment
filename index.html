@@ -97,8 +97,8 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .hs.inst .tag{color:#14171c;background:var(--amber);border-color:var(--amber)}
 .hs.today{border-color:var(--violet);background:rgba(201,94,255,.28);animation:todaypulse .9s infinite}
 .hs.today .tag{color:#fff;background:#7d2fb0;border-color:var(--violet)}
-.hs.planned{border-color:#000;background:rgba(0,0,0,.4);border-style:dashed}
-.hs.planned .tag{color:#fff;background:#000;border-color:#000}
+.hs.planned{border:3px solid #000;background:rgba(0,0,0,.45);box-shadow:0 0 0 2px rgba(255,255,255,.85), 0 1px 6px rgba(0,0,0,.6)}
+.hs.planned .tag{color:#fff;background:#000;border-color:#fff;border-width:1px}
 @keyframes todaypulse{0%,100%{box-shadow:0 0 10px var(--violet-glow), inset 0 0 8px rgba(201,94,255,.3)}50%{box-shadow:0 0 26px var(--violet-glow), inset 0 0 18px rgba(201,94,255,.55)}}
 .btn.hot{background:var(--hot);border-color:var(--hot);color:#fff;font-weight:600}
 .btn.blue{background:#1a5dab;border-color:var(--blue);color:#fff;font-weight:600}
@@ -180,6 +180,7 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
 .dlist{display:flex;flex-direction:column;gap:8px}
 .drow{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);padding:8px 12px;border-radius:3px;flex-wrap:wrap}
 .drow .dname{font-family:'IBM Plex Mono';font-weight:600;flex:1;min-width:140px}
+.drow .dpos{font-family:'IBM Plex Mono';font-size:12px;color:var(--muted);background:#0e1114;border:1px solid var(--line);border-radius:10px;padding:1px 8px;min-width:18px;text-align:center}
 .drow .dfile{font-family:'IBM Plex Mono';font-size:12px;color:var(--muted)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--amber);padding:10px 20px;border-radius:4px;z-index:200;font-family:'IBM Plex Mono';font-size:13px;display:none}
 
@@ -227,6 +228,7 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
 
 <div class="banner" id="banner">
   <span class="msg">⚠ UNPUBLISHED CHANGES — viewers still see the old status until you upload the new data.json to GitHub.</span>
+  <button class="btn mini" id="btn-recheck" onclick="recheckPublished(true)">Check now</button>
   <button class="btn warn mini" onclick="downloadDataJson()">Download data.json</button>
   <button class="btn ghost mini" onclick="discardLocal()">Discard changes</button>
 </div>
@@ -308,6 +310,20 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
         <input type="text" id="site-name" placeholder="e.g. Data Center Hall 2 — Phase 1" style="min-width:280px" onchange="setSiteName(this.value)">
       </div>
     </div>
+
+    <div class="card" id="card-editpw">
+      <h2>Edit access</h2>
+      <div class="desc" id="editpw-desc">Set a password so only people who know it can enable Edit mode. This deters casual visitors — it isn't a substitute for a private repo, since anyone using their browser's developer tools can still bypass a client-side password.</div>
+      <div id="editpw-current" style="display:none;margin-bottom:10px">
+        <span class="statuschip" style="background:var(--safe);color:#fff">PASSWORD SET</span>
+      </div>
+      <div class="cbwrap" style="flex-wrap:wrap">
+        <input type="password" id="editpw-new" placeholder="New password" style="min-width:200px" autocomplete="off">
+        <button class="btn warn mini" onclick="setEditPassword()">Set / change password</button>
+        <button class="btn ghost mini" id="editpw-remove" style="display:none" onclick="removeEditPassword()">Remove password</button>
+      </div>
+      <div class="fnote" style="margin-top:8px">Changing this only takes effect after you publish <b>data.json</b>, same as any other edit.</div>
+    </div>
   </div>
 </div>
 </main>
@@ -354,6 +370,21 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
   </div>
 </div>
 
+<!-- password gate modal -->
+<div class="ov" id="modal-pw">
+  <div class="modal">
+    <h3>Enter edit password</h3>
+    <div class="fg">
+      <input type="password" id="pw-input" placeholder="Password" autocomplete="off">
+      <div class="fnote" id="pw-error" style="display:none;color:var(--danger)">Incorrect password.</div>
+    </div>
+    <div class="mf">
+      <button class="btn ghost" onclick="closePasswordModal()">Cancel</button>
+      <button class="btn warn" onclick="submitPasswordModal()">Unlock</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -390,6 +421,7 @@ function todayStr(){
 function normalize(obj){
   return JSON.stringify({
     site: obj.site||'',
+    editPasswordHash: obj.editPasswordHash||'',
     drawings: (obj.drawings||[]).map(function(d){return {id:d.id,name:d.name,file:d.file}}),
     equipment: (obj.equipment||[]).map(function(e){return {id:e.id,name:e.name,drawingId:e.drawingId,shape:e.shape||'rect',x:e.x,y:e.y,w:e.w,h:e.h,status:e.status||(e.energized?'on':'off'),instDate:e.instDate||'',peiDate:e.peiDate||'',date:e.date||''}})
   });
@@ -419,6 +451,7 @@ function afterFetch(){
   else { data = {site:'', drawings:[], equipment:[]}; hasLocal = !!local; }
   if(!data.drawings) data.drawings = [];
   if(!data.equipment) data.equipment = [];
+  if(data.editPasswordHash === undefined) data.editPasswordHash = '';
   /* migrate old on/off data to three-state status */
   data.equipment.forEach(function(e){
     if(!e.status) e.status = e.energized ? 'on' : 'off';
@@ -439,6 +472,32 @@ function markDirty(){
 }
 function updateBanner(){
   document.getElementById('banner').classList.toggle('show', hasLocal);
+  if(hasLocal) startAutoRecheck(); else stopAutoRecheck();
+}
+var recheckTimer = null;
+function startAutoRecheck(){
+  if(recheckTimer) return;
+  recheckTimer = setInterval(function(){ recheckPublished(false); }, 20000);
+}
+function stopAutoRecheck(){
+  if(recheckTimer){ clearInterval(recheckTimer); recheckTimer=null; }
+}
+function recheckPublished(manual){
+  fetch('data.json?t='+Date.now())
+    .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    .then(function(json){
+      if(normalize(data) === normalize(json)){
+        localStorage.removeItem(LS_KEY);
+        hasLocal = false;
+        updateBanner();
+        if(manual) toast('Published! Your edits match the live site.');
+      } else if(manual){
+        toast('Not live yet — GitHub Pages can take a minute or two after a commit. Try again shortly.');
+      }
+    })
+    .catch(function(){
+      if(manual) toast('Could not reach data.json to check — try again in a moment.');
+    });
 }
 function discardLocal(){
   if(!hasLocal){ toast('No local changes to discard'); return; }
@@ -450,17 +509,66 @@ function discardLocal(){
 
 /* ================= EDIT MODE ================= */
 function toggleEditMode(){
-  editMode = !editMode;
+  if(editMode){ disableEditMode(); return; }
+  if(data.editPasswordHash){ openPasswordModal(); return; }
+  enableEditMode();
+}
+function enableEditMode(){
+  editMode = true;
+  applyEditModeUI();
+}
+function disableEditMode(){
+  editMode = false;
+  setAddMode(false);
+  applyEditModeUI();
+}
+function applyEditModeUI(){
   var b = document.getElementById('edit-toggle');
   b.classList.toggle('on', editMode);
   b.textContent = editMode ? '✎ Edit mode: ON' : '✎ Edit mode: OFF';
-  if(!editMode) setAddMode(false);
   document.getElementById('btn-add-eq').style.display = editMode? '' : 'none';
   document.getElementById('empty-add').style.display = editMode? '' : 'none';
   document.getElementById('eq-desc').textContent = editMode
     ? 'Set the status of each item: black = not installed yet, green = de-energized, amber = installed, blue = PEI walked, violet = energizing today, red = energized. Download data.json and upload to GitHub to publish.'
     : 'Current status as published. Turn on Edit mode to make changes.';
   renderAll(); renderSettings();
+}
+
+/* ---- password gate ---- */
+function sha256Hex(str){
+  var enc = new TextEncoder().encode(str);
+  return crypto.subtle.digest('SHA-256', enc).then(function(buf){
+    return Array.prototype.map.call(new Uint8Array(buf), function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  });
+}
+function openPasswordModal(){
+  document.getElementById('pw-input').value = '';
+  document.getElementById('pw-error').style.display = 'none';
+  document.getElementById('modal-pw').classList.add('open');
+  setTimeout(function(){ document.getElementById('pw-input').focus(); }, 50);
+}
+function closePasswordModal(){
+  document.getElementById('modal-pw').classList.remove('open');
+}
+function submitPasswordModal(){
+  var pw = document.getElementById('pw-input').value;
+  if(!pw) return;
+  if(!(window.crypto && window.crypto.subtle)){
+    document.getElementById('pw-error').textContent = 'This browser can\'t verify passwords securely (needs HTTPS). Try a different browser or the live GitHub Pages URL.';
+    document.getElementById('pw-error').style.display = 'block';
+    return;
+  }
+  sha256Hex(pw).then(function(hash){
+    if(hash === data.editPasswordHash){
+      closePasswordModal();
+      enableEditMode();
+    } else {
+      document.getElementById('pw-error').textContent = 'Incorrect password.';
+      document.getElementById('pw-error').style.display = 'block';
+      document.getElementById('pw-input').value='';
+      document.getElementById('pw-input').focus();
+    }
+  });
 }
 
 /* ================= NAV ================= */
@@ -508,6 +616,14 @@ function deleteDrawing(id){
   data.drawings = data.drawings.filter(function(x){return x.id!==id});
   data.equipment = data.equipment.filter(function(e){return e.drawingId!==id});
   if(activeDrawing===id) activeDrawing = data.drawings.length? data.drawings[0].id : null;
+  markDirty(); renderAll(); renderSettings();
+}
+function moveDrawing(id, dir){
+  if(!editMode) return;
+  var i = data.drawings.findIndex(function(x){return x.id===id}); if(i<0) return;
+  var j = i + dir;
+  if(j<0 || j>=data.drawings.length) return;
+  var tmp = data.drawings[i]; data.drawings[i] = data.drawings[j]; data.drawings[j] = tmp;
   markDirty(); renderAll(); renderSettings();
 }
 
@@ -893,6 +1009,7 @@ function saveEqModal(){
 }
 document.getElementById('eq-name').addEventListener('keydown', function(e){ if(e.key==='Enter') saveEqModal(); });
 document.getElementById('dw-name').addEventListener('keydown', function(e){ if(e.key==='Enter') saveDrawModal(); });
+document.getElementById('pw-input').addEventListener('keydown', function(e){ if(e.key==='Enter') submitPasswordModal(); });
 
 /* ================= STATUS ================= */
 var ST_LABEL = {planned:'NOT INSTALLED', off:'DE-ENERGIZED', inst:'INSTALLED', pei:'PEI WALKED', today:'ENERGIZING TODAY', on:'ENERGIZED'};
@@ -991,14 +1108,17 @@ function renderSettings(){
   });
   var dl = document.getElementById('dlist'); dl.innerHTML='';
   if(!data.drawings.length){ dl.innerHTML='<span class="muted">No drawings yet.</span>'; }
-  data.drawings.forEach(function(d){
+  data.drawings.forEach(function(d, idx){
     var eqs = data.equipment.filter(function(e){return e.drawingId===d.id});
     var row = document.createElement('div'); row.className='drow';
-    row.innerHTML = '<span class="dname">'+escapeHtml(d.name)+'</span>'
+    row.innerHTML = '<span class="dpos">'+(idx+1)+'</span>'
+      +'<span class="dname">'+escapeHtml(d.name)+'</span>'
       +'<span class="dfile">'+escapeHtml(d.file)+'</span>'
       +'<span class="muted">'+eqs.length+' equipment</span>'
       +(editMode
-        ? '<button class="btn mini" onclick="renameDrawing(\''+d.id+'\')">Rename</button>'
+        ? '<button class="btn mini" '+(idx===0?'disabled':'')+' onclick="moveDrawing(\''+d.id+'\',-1)" title="Move up">▲</button>'
+          +'<button class="btn mini" '+(idx===data.drawings.length-1?'disabled':'')+' onclick="moveDrawing(\''+d.id+'\',1)" title="Move down">▼</button>'
+          +'<button class="btn mini" onclick="renameDrawing(\''+d.id+'\')">Rename</button>'
           +'<button class="btn ghost mini" onclick="deleteDrawing(\''+d.id+'\')">Remove</button>'
         : '');
     dl.appendChild(row);
@@ -1006,6 +1126,11 @@ function renderSettings(){
   document.getElementById('btn-add-drawing').style.display = editMode? '' : 'none';
   document.getElementById('card-publish').style.display = editMode? '' : 'none';
   document.getElementById('site-name').disabled = !editMode;
+  var pwSet = !!data.editPasswordHash;
+  document.getElementById('card-editpw').style.display = editMode? '' : 'none';
+  document.getElementById('editpw-current').style.display = pwSet? '' : 'none';
+  document.getElementById('editpw-remove').style.display = pwSet? '' : 'none';
+  document.getElementById('editpw-new').placeholder = pwSet ? 'New password (replaces current)' : 'New password';
 }
 function setInstDate(id, val){
   if(!editMode) return;
@@ -1055,6 +1180,26 @@ function applySiteName(){
   document.title = (data.site? data.site+' — ':'') + 'ESB';
 }
 
+/* ---- edit-access password management ---- */
+function setEditPassword(){
+  if(!editMode) return;
+  var pw = document.getElementById('editpw-new').value;
+  if(!pw){ alert('Enter a password.'); return; }
+  if(pw.length < 4 && !confirm('That\'s a short password — anyone who guesses it gets edit access. Use it anyway?')) return;
+  sha256Hex(pw).then(function(hash){
+    data.editPasswordHash = hash;
+    document.getElementById('editpw-new').value = '';
+    markDirty(); renderSettings();
+    toast('Password set — publish data.json for it to take effect for everyone.');
+  });
+}
+function removeEditPassword(){
+  if(!editMode) return;
+  if(!confirm('Remove password protection? Anyone with the link will be able to turn on Edit mode.')) return;
+  data.editPasswordHash = '';
+  markDirty(); renderSettings();
+  toast('Password removed — publish data.json to apply.');
+}
 
 /* ================= REPORT / CSV ================= */
 function reportRows(){
