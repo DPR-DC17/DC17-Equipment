@@ -193,6 +193,13 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
 .fl{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
 .fg input,.fg select{width:100%}
 .fnote{font-size:12px;color:var(--muted);margin-top:4px}
+.ac-list{position:absolute;left:0;right:0;top:100%;background:#0e1114;border:1px solid var(--amber);border-top:none;border-radius:0 0 4px 4px;max-height:170px;overflow:auto;z-index:60;display:none}
+.ac-list.show{display:block}
+.ac-item{padding:7px 10px;cursor:pointer;font-family:'IBM Plex Mono';font-size:13px;border-bottom:1px solid var(--line)}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.hi{background:var(--amber);color:#14171c}
+.ac-item .desc{color:var(--muted);font-size:11px;margin-left:8px}
+.ac-item:hover .desc,.ac-item.hi .desc{color:#14171c;opacity:.75}
 .mf{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 @media (max-width:700px){
   header{padding:8px 10px}
@@ -218,6 +225,7 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
     <div class="lamp"><span class="dot amber"></span> INSTALLED <b id="cnt-inst">0</b></div>
     <div class="lamp"><span class="dot green"></span> DE-ENERGIZED <b id="cnt-off">0</b></div>
     <div class="lamp"><span class="dot black"></span> NOT INSTALLED <b id="cnt-planned">0</b></div>
+    <span id="custom-lamps" style="display:contents"></span>
   </div>
   <nav>
     <button class="navbtn active" id="nav-draw" onclick="showPage('draw')">Drawings</button>
@@ -324,6 +332,29 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
       </div>
       <div class="fnote" style="margin-top:8px">Changing this only takes effect after you publish <b>data.json</b>, same as any other edit.</div>
     </div>
+
+    <div class="card" id="card-customstatus">
+      <h2>Custom statuses</h2>
+      <div class="desc">Add your own status beyond the built-in six — pick a color and a name. It becomes a full status: it shows up in every dropdown, gets its own quick-set button on the drawing, its own header count, and its own row in printed reports.</div>
+      <div class="dlist" id="cs-list"></div>
+      <div class="cbwrap" style="flex-wrap:wrap;margin-top:12px">
+        <input type="color" id="cs-new-color" value="#ff8800" style="width:44px;height:34px;padding:2px;border-radius:3px;border:1px solid var(--line);background:#0e1114;cursor:pointer">
+        <input type="text" id="cs-new-label" placeholder="Status name, e.g. Removed" style="min-width:200px">
+        <button class="btn warn mini" onclick="addCustomStatus()">Add status</button>
+      </div>
+    </div>
+
+    <div class="card" id="card-catalog">
+      <h2>Equipment catalog</h2>
+      <div class="desc">Upload a CSV of expected equipment tags (one tag per row; an optional second column can hold a description). Once loaded, typing in the equipment name field while placing a box will suggest matching tags — useful for keeping tag numbers consistent across 40+ drawings instead of retyping them by hand.</div>
+      <div class="cbwrap" style="flex-wrap:wrap">
+        <input type="file" id="catalog-file" accept=".csv" style="display:none" onchange="importCatalogCsv(this)">
+        <button class="btn warn mini" onclick="document.getElementById('catalog-file').click()">Import CSV</button>
+        <button class="btn ghost mini" onclick="clearCatalog()">Clear catalog</button>
+        <span class="muted" id="catalog-summary"></span>
+      </div>
+      <div class="dlist" id="catalog-list" style="max-height:220px;overflow:auto;margin-top:12px"></div>
+    </div>
   </div>
 </div>
 </main>
@@ -332,7 +363,11 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
 <div class="ov" id="modal-eq">
   <div class="modal">
     <h3 id="modal-eq-title">New equipment</h3>
-    <div class="fg"><label class="fl">Equipment tag / name</label><input type="text" id="eq-name" placeholder="e.g. SWBD-1A, UPS-2, ATS-3"></div>
+    <div class="fg" style="position:relative">
+      <label class="fl">Equipment tag / name</label>
+      <input type="text" id="eq-name" placeholder="e.g. SWBD-1A, UPS-2, ATS-3" autocomplete="off">
+      <div id="eq-name-suggest" class="ac-list"></div>
+    </div>
     <div class="fg"><label class="fl">Status</label>
       <select id="eq-status">
         <option value="planned">Not installed</option>
@@ -422,6 +457,8 @@ function normalize(obj){
   return JSON.stringify({
     site: obj.site||'',
     editPasswordHash: obj.editPasswordHash||'',
+    customStatuses: (obj.customStatuses||[]).map(function(c){return {id:c.id,label:c.label,color:c.color}}),
+    equipmentCatalog: (obj.equipmentCatalog||[]).map(function(c){return {id:c.id||'',tag:c.tag||'',desc:c.desc||''}}),
     drawings: (obj.drawings||[]).map(function(d){return {id:d.id,name:d.name,file:d.file}}),
     equipment: (obj.equipment||[]).map(function(e){return {id:e.id,name:e.name,drawingId:e.drawingId,shape:e.shape||'rect',x:e.x,y:e.y,w:e.w,h:e.h,status:e.status||(e.energized?'on':'off'),instDate:e.instDate||'',peiDate:e.peiDate||'',date:e.date||''}})
   });
@@ -451,6 +488,8 @@ function afterFetch(){
   else { data = {site:'', drawings:[], equipment:[]}; hasLocal = !!local; }
   if(!data.drawings) data.drawings = [];
   if(!data.equipment) data.equipment = [];
+  if(!data.customStatuses) data.customStatuses = [];
+  if(!data.equipmentCatalog) data.equipmentCatalog = [];
   if(data.editPasswordHash === undefined) data.editPasswordHash = '';
   /* migrate old on/off data to three-state status */
   data.equipment.forEach(function(e){
@@ -737,12 +776,21 @@ function renderHotspots(){
   closePopup();
   data.equipment.filter(function(e){return e.drawingId===activeDrawing}).forEach(function(e){
     var div = document.createElement('div');
+    var custom = !isBuiltinStatus(e.status) ? findCustomStatus(e.status) : null;
     div.className = 'hs'+(e.status==='on'?' on':e.status==='today'?' today':e.status==='pei'?' pei':e.status==='inst'?' inst':e.status==='planned'?' planned':'')+(e.shape==='ellipse'?' ellipse':'');
     div.style.left=(e.x*100)+'%'; div.style.top=(e.y*100)+'%';
     div.style.width=(e.w*100)+'%'; div.style.height=(e.h*100)+'%';
     div.setAttribute('data-eq', e.id);
     div.title = e.name;
     var tag = document.createElement('span'); tag.className='tag'; tag.textContent=e.name;
+    if(custom){
+      div.style.borderColor = custom.color;
+      div.style.background = hexToRgba(custom.color, .28);
+      div.style.boxShadow = '0 0 10px '+hexToRgba(custom.color,.5)+', inset 0 0 8px '+hexToRgba(custom.color,.3);
+      tag.style.background = custom.color;
+      tag.style.borderColor = custom.color;
+      tag.style.color = readableTextColor(custom.color);
+    }
     div.appendChild(tag);
     if(editMode){
       div.classList.add('editable');
@@ -821,6 +869,10 @@ function openPopup(eqId, anchor){
   if(st!=='pei')  stBtns += '<button class="btn blue mini" onclick="setStatus(\''+e.id+'\',\'pei\')">PEI walked</button>';
   if(st!=='today') stBtns += '<button class="btn violet mini" onclick="setStatus(\''+e.id+'\',\'today\')">Energizing today</button>';
   if(st!=='on')   stBtns += '<button class="btn hot mini" onclick="setStatus(\''+e.id+'\',\'on\')">Energize</button>';
+  (data.customStatuses||[]).forEach(function(c){
+    if(st===c.id) return;
+    stBtns += '<button class="btn mini" style="background:'+c.color+';border-color:'+c.color+';color:'+readableTextColor(c.color)+';font-weight:600" onclick="setStatus(\''+e.id+'\',\''+c.id+'\')">'+escapeHtml(c.label)+'</button>';
+  });
   var actions = editMode
     ? '<div class="actions">'+stBtns+'</div>'
       +'<div class="actions">'
@@ -828,9 +880,13 @@ function openPopup(eqId, anchor){
       +'<button class="btn mini" onclick="duplicateEq(\''+e.id+'\')">Duplicate</button>'
       +'<button class="btn ghost mini" onclick="closePopup()">✕</button></div>'
     : '<div class="actions"><button class="btn ghost mini" onclick="closePopup()">Close</button></div>';
+  var custom = !isBuiltinStatus(st) ? findCustomStatus(st) : null;
+  var chip = custom
+    ? '<span class="statuschip" style="background:'+custom.color+';color:'+readableTextColor(custom.color)+'">'+escapeHtml(custom.label.toUpperCase())+'</span>'
+    : '<span class="statuschip '+(st==='off'?'off':st)+'">'+ST_LABEL[st]+'</span>';
   pop.innerHTML =
     '<h3>'+escapeHtml(e.name)+'</h3>'
-    +'<div class="prow">Status: <span class="statuschip '+(st==='off'?'off':st)+'">'+ST_LABEL[st]+'</span></div>'
+    +'<div class="prow">Status: '+chip+'</div>'
     +'<div class="prow">Installed: <b>'+(e.instDate||'—')+'</b></div>'
     +'<div class="prow">PEI walked: <b>'+(e.peiDate||'—')+'</b></div>'
     +'<div class="prow">Date energized: <b>'+(e.date||'—')+'</b></div>'
@@ -976,11 +1032,22 @@ function setShape(s){
 })();
 
 /* ================= EQUIPMENT MODAL ================= */
+function populateCustomStatusOptions(selectEl, selectedValue){
+  var arr = selectEl.querySelectorAll('option[data-custom]');
+  arr.forEach(function(o){ o.remove(); });
+  (data.customStatuses||[]).forEach(function(c){
+    var opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = c.label; opt.setAttribute('data-custom','1');
+    selectEl.appendChild(opt);
+  });
+  selectEl.value = selectedValue;
+}
 function openEqModal(prefillName){
   editingEqId = null;
   document.getElementById('modal-eq-title').textContent = prefillName ? 'Duplicate equipment' : 'New equipment';
   document.getElementById('eq-name').value = prefillName || '';
-  document.getElementById('eq-status').value='off';
+  document.getElementById('eq-name-suggest').classList.remove('show');
+  populateCustomStatusOptions(document.getElementById('eq-status'), 'off');
   document.getElementById('eq-instdate').value='';
   document.getElementById('eq-peidate').value='';
   document.getElementById('eq-date').value='';
@@ -994,7 +1061,8 @@ function editEq(id){
   editingEqId = id; pendingRect = null;
   document.getElementById('modal-eq-title').textContent='Edit equipment';
   document.getElementById('eq-name').value=e.name;
-  document.getElementById('eq-status').value=e.status||'off';
+  document.getElementById('eq-name-suggest').classList.remove('show');
+  populateCustomStatusOptions(document.getElementById('eq-status'), e.status||'off');
   document.getElementById('eq-instdate').value=e.instDate||'';
   document.getElementById('eq-peidate').value=e.peiDate||'';
   document.getElementById('eq-date').value=e.date||'';
@@ -1030,12 +1098,53 @@ function saveEqModal(){
   if(!wasNew) setAddMode(false);   // stay in add mode after placing, so you can keep stamping
   renderAll(); renderSettings();
 }
-document.getElementById('eq-name').addEventListener('keydown', function(e){ if(e.key==='Enter') saveEqModal(); });
+(function(){
+  var input = document.getElementById('eq-name');
+  var list = document.getElementById('eq-name-suggest');
+  input.addEventListener('input', renderEqSuggestions);
+  input.addEventListener('focus', function(){ if(input.value) renderEqSuggestions(); });
+  input.addEventListener('blur', function(){ setTimeout(function(){ list.classList.remove('show'); }, 150); });
+  input.addEventListener('keydown', function(ev){
+    var items = list.querySelectorAll('.ac-item');
+    if(list.classList.contains('show') && items.length){
+      if(ev.key==='ArrowDown'){ ev.preventDefault(); acHiIdx=Math.min(acHiIdx+1, items.length-1); updateEqSuggestHighlight(); return; }
+      if(ev.key==='ArrowUp'){ ev.preventDefault(); acHiIdx=Math.max(acHiIdx-1,0); updateEqSuggestHighlight(); return; }
+      if(ev.key==='Enter' && acHiIdx>=0){ ev.preventDefault(); items[acHiIdx].dispatchEvent(new Event('mousedown', {bubbles:true})); list.classList.remove('show'); return; }
+      if(ev.key==='Escape'){ list.classList.remove('show'); return; }
+    }
+    if(ev.key==='Enter') saveEqModal();
+  });
+})();
 document.getElementById('dw-name').addEventListener('keydown', function(e){ if(e.key==='Enter') saveDrawModal(); });
 document.getElementById('pw-input').addEventListener('keydown', function(e){ if(e.key==='Enter') submitPasswordModal(); });
 
 /* ================= STATUS ================= */
 var ST_LABEL = {planned:'NOT INSTALLED', off:'DE-ENERGIZED', inst:'INSTALLED', pei:'PEI WALKED', today:'ENERGIZING TODAY', on:'ENERGIZED'};
+var BUILTIN_STATUSES = ['planned','off','inst','pei','today','on'];
+function isBuiltinStatus(s){ return BUILTIN_STATUSES.indexOf(s) !== -1; }
+function findCustomStatus(id){ return (data.customStatuses||[]).find(function(c){return c.id===id;}); }
+function statusLabel(s){
+  if(ST_LABEL[s]) return ST_LABEL[s];
+  var c = findCustomStatus(s);
+  return c ? c.label : 'UNKNOWN';
+}
+function statusColorHex(s){
+  var c = findCustomStatus(s);
+  return c ? c.color : '#888888';
+}
+function hexToRgba(hex, a){
+  hex = (hex||'#888888').replace('#','');
+  if(hex.length===3) hex = hex.split('').map(function(c){return c+c;}).join('');
+  var r = parseInt(hex.substr(0,2),16)||0, g = parseInt(hex.substr(2,2),16)||0, b = parseInt(hex.substr(4,2),16)||0;
+  return 'rgba('+r+','+g+','+b+','+a+')';
+}
+function readableTextColor(hex){
+  hex = (hex||'#888888').replace('#','');
+  if(hex.length===3) hex = hex.split('').map(function(c){return c+c;}).join('');
+  var r = parseInt(hex.substr(0,2),16)||0, g = parseInt(hex.substr(2,2),16)||0, b = parseInt(hex.substr(4,2),16)||0;
+  var yiq = (r*299 + g*587 + b*114) / 1000;
+  return yiq >= 150 ? '#14171c' : '#ffffff';
+}
 function setStatus(id, s){
   if(!editMode) return;
   var e = data.equipment.find(function(x){return x.id===id}); if(!e) return;
@@ -1044,7 +1153,7 @@ function setStatus(id, s){
   if(s==='pei' && !e.peiDate) e.peiDate = todayStr();
   if(s==='on' && !e.date) e.date = todayStr();
   markDirty(); renderAll(); renderSettings();
-  toast(e.name + ' — ' + ST_LABEL[s]);
+  toast(e.name + ' — ' + statusLabel(s));
 }
 
 function updateCounts(){
@@ -1059,6 +1168,15 @@ function updateCounts(){
   document.getElementById('cnt-inst').textContent = inst;
   document.getElementById('cnt-planned').textContent = planned;
   document.getElementById('cnt-off').textContent = data.equipment.length - on - pei - inst - today - planned;
+
+  var cl = document.getElementById('custom-lamps'); cl.innerHTML='';
+  (data.customStatuses||[]).forEach(function(c){
+    var n = data.equipment.filter(function(e){return e.status===c.id}).length;
+    var div = document.createElement('div'); div.className='lamp';
+    div.innerHTML = '<span class="dot" style="background:'+c.color+';box-shadow:0 0 6px '+hexToRgba(c.color,.5)+'"></span> '
+      +escapeHtml(c.label.toUpperCase())+' <b>'+n+'</b>';
+    cl.appendChild(div);
+  });
 }
 
 /* ================= SETTINGS PAGE ================= */
@@ -1067,6 +1185,11 @@ function renderSettings(){
   document.getElementById('eq-empty').style.display = data.equipment.length? 'none':'block';
   var dis = editMode? '' : 'disabled';
   var STATUS_ORDER = {planned:0, off:1, inst:2, pei:3, today:4, on:5};
+  function sortValue(s){
+    if(STATUS_ORDER.hasOwnProperty(s)) return STATUS_ORDER[s];
+    var idx = (data.customStatuses||[]).findIndex(function(c){return c.id===s;});
+    return idx>=0 ? 6+idx : 999;
+  }
   var rows = data.equipment.map(function(e){
     var d = data.drawings.find(function(x){return x.id===e.drawingId});
     return {e:e, d:d};
@@ -1075,7 +1198,7 @@ function renderSettings(){
     var av, bv;
     switch(sortCol){
       case 'status':
-        av = STATUS_ORDER[a.e.status||'off']; bv = STATUS_ORDER[b.e.status||'off']; break;
+        av = sortValue(a.e.status||'off'); bv = sortValue(b.e.status||'off'); break;
       case 'drawing':
         av = (a.d? a.d.name : ''); bv = (b.d? b.d.name : ''); break;
       case 'instDate': case 'peiDate': case 'date':
@@ -1097,19 +1220,28 @@ function renderSettings(){
   rows.forEach(function(row){
     var e = row.e, d = row.d;
     var st = e.status||'off';
+    var custom = !isBuiltinStatus(st) ? findCustomStatus(st) : null;
     var tr = document.createElement('tr');
-    if(st==='on') tr.className='rowon'; else if(st==='today') tr.className='rowtoday'; else if(st==='pei') tr.className='rowpei'; else if(st==='inst') tr.className='rowinst'; else if(st==='planned') tr.className='rowplanned';
+    if(custom){ tr.style.background = hexToRgba(custom.color, .06); }
+    else if(st==='on') tr.className='rowon'; else if(st==='today') tr.className='rowtoday'; else if(st==='pei') tr.className='rowpei'; else if(st==='inst') tr.className='rowinst'; else if(st==='planned') tr.className='rowplanned';
+    var customOptsHtml = (data.customStatuses||[]).map(function(c){
+      return '<option value="'+c.id+'"'+(st===c.id?' selected':'')+'>'+escapeHtml(c.label)+'</option>';
+    }).join('');
+    var statusCellHtml = editMode
+      ? '<select class="'+(custom?'':'st-'+st)+'" style="'+(custom?'border-color:'+custom.color+';color:'+custom.color:'')+'" onchange="setStatus(\''+e.id+'\', this.value)">'
+        +'<option value="planned"'+(st==='planned'?' selected':'')+'>Not installed</option>'
+        +'<option value="off"'+(st==='off'?' selected':'')+'>De-energized</option>'
+        +'<option value="inst"'+(st==='inst'?' selected':'')+'>Installed</option>'
+        +'<option value="pei"'+(st==='pei'?' selected':'')+'>PEI walked</option>'
+        +'<option value="today"'+(st==='today'?' selected':'')+'>Energizing today</option>'
+        +'<option value="on"'+(st==='on'?' selected':'')+'>Energized</option>'
+        + customOptsHtml
+        +'</select>'
+      : (custom
+          ? '<span class="statuschip" style="background:'+custom.color+';color:'+readableTextColor(custom.color)+'">'+escapeHtml(custom.label.toUpperCase())+'</span>'
+          : '<span class="statuschip '+st+'">'+ST_LABEL[st]+'</span>');
     tr.innerHTML =
-      '<td>'+(editMode
-          ? '<select class="st-'+st+'" onchange="setStatus(\''+e.id+'\', this.value)">'
-            +'<option value="planned"'+(st==='planned'?' selected':'')+'>Not installed</option>'
-            +'<option value="off"'+(st==='off'?' selected':'')+'>De-energized</option>'
-            +'<option value="inst"'+(st==='inst'?' selected':'')+'>Installed</option>'
-            +'<option value="pei"'+(st==='pei'?' selected':'')+'>PEI walked</option>'
-            +'<option value="today"'+(st==='today'?' selected':'')+'>Energizing today</option>'
-            +'<option value="on"'+(st==='on'?' selected':'')+'>Energized</option>'
-            +'</select>'
-          : '<span class="statuschip '+st+'">'+ST_LABEL[st]+'</span>')+'</td>'
+      '<td>'+statusCellHtml+'</td>'
       +'<td>'+(editMode
           ? '<input type="text" class="tag-mono" value="'+escapeAttr(e.name)+'" onchange="setName(\''+e.id+'\', this.value)" style="width:100%;max-width:220px">'
           : '<span class="tag-mono">'+escapeHtml(e.name)+'</span>')+'</td>'
@@ -1154,6 +1286,41 @@ function renderSettings(){
   document.getElementById('editpw-current').style.display = pwSet? '' : 'none';
   document.getElementById('editpw-remove').style.display = pwSet? '' : 'none';
   document.getElementById('editpw-new').placeholder = pwSet ? 'New password (replaces current)' : 'New password';
+
+  document.getElementById('card-customstatus').style.display = editMode? '' : 'none';
+  var csList = document.getElementById('cs-list'); csList.innerHTML='';
+  if(!(data.customStatuses||[]).length){ csList.innerHTML = '<span class="muted">No custom statuses yet.</span>'; }
+  (data.customStatuses||[]).forEach(function(c){
+    var n = data.equipment.filter(function(e){return e.status===c.id}).length;
+    var row = document.createElement('div'); row.className='drow';
+    row.innerHTML =
+      '<input type="color" value="'+c.color+'" style="width:36px;height:30px;padding:2px;border-radius:3px;border:1px solid var(--line);background:#0e1114;cursor:pointer" onchange="setCustomStatusColor(\''+c.id+'\', this.value)">'
+      +'<input type="text" class="dname" value="'+escapeAttr(c.label)+'" onchange="setCustomStatusLabel(\''+c.id+'\', this.value)" style="flex:1;min-width:140px">'
+      +'<span class="muted">'+n+' equipment</span>'
+      +'<button class="btn ghost mini" onclick="removeCustomStatus(\''+c.id+'\')">Remove</button>';
+    csList.appendChild(row);
+  });
+
+  document.getElementById('card-catalog').style.display = editMode? '' : 'none';
+  var cat = data.equipmentCatalog||[];
+  var catList = document.getElementById('catalog-list'); catList.innerHTML='';
+  if(!cat.length){ catList.innerHTML = '<span class="muted">No catalog loaded — import a CSV to enable tag suggestions when placing equipment.</span>'; }
+  cat.slice().sort(function(a,b){ return a.tag.localeCompare(b.tag, undefined, {numeric:true, sensitivity:'base'}); }).forEach(function(c){
+    var row = document.createElement('div'); row.className='drow';
+    row.innerHTML = '<span class="dname">'+escapeHtml(c.tag)+'</span>'
+      +'<span class="muted">'+escapeHtml(c.desc||'')+'</span>'
+      +'<button class="btn ghost mini" onclick="removeCatalogItem(\''+c.id+'\')">Remove</button>';
+    catList.appendChild(row);
+  });
+  var summary = document.getElementById('catalog-summary');
+  if(cat.length){
+    var placedNames = {};
+    data.equipment.forEach(function(e){ placedNames[e.name.toLowerCase()] = true; });
+    var placedCount = cat.filter(function(c){ return placedNames[c.tag.toLowerCase()]; }).length;
+    summary.textContent = placedCount+' of '+cat.length+' catalog tags placed on drawings';
+  } else {
+    summary.textContent = '';
+  }
 }
 function setInstDate(id, val){
   if(!editMode) return;
@@ -1224,6 +1391,136 @@ function removeEditPassword(){
   toast('Password removed — publish data.json to apply.');
 }
 
+/* ---- custom statuses ---- */
+function addCustomStatus(){
+  if(!editMode) return;
+  var label = document.getElementById('cs-new-label').value.trim();
+  var color = document.getElementById('cs-new-color').value;
+  if(!label){ alert('Enter a name for the new status.'); return; }
+  if((data.customStatuses||[]).some(function(c){return c.label.toLowerCase()===label.toLowerCase();})){
+    alert('A custom status with that name already exists.'); return;
+  }
+  if(!data.customStatuses) data.customStatuses = [];
+  data.customStatuses.push({id:'c_'+uid(), label:label, color:color});
+  document.getElementById('cs-new-label').value = '';
+  markDirty(); renderAll(); renderSettings();
+  toast('Added status: '+label);
+}
+function setCustomStatusColor(id, color){
+  if(!editMode) return;
+  var c = findCustomStatus(id); if(!c) return;
+  c.color = color; markDirty(); renderAll(); renderSettings();
+}
+function setCustomStatusLabel(id, label){
+  if(!editMode) return;
+  var c = findCustomStatus(id); if(!c) return;
+  label = label.trim(); if(!label) return;
+  c.label = label; markDirty(); renderAll(); renderSettings();
+}
+function removeCustomStatus(id){
+  if(!editMode) return;
+  var c = findCustomStatus(id); if(!c) return;
+  var affected = data.equipment.filter(function(e){return e.status===id;}).length;
+  var msg = 'Remove status "'+c.label+'"?';
+  if(affected) msg += ' ' + affected + ' equipment item(s) using it will revert to De-energized.';
+  if(!confirm(msg)) return;
+  data.equipment.forEach(function(e){ if(e.status===id) e.status='off'; });
+  data.customStatuses = data.customStatuses.filter(function(x){return x.id!==id;});
+  markDirty(); renderAll(); renderSettings();
+  toast('Removed status: '+c.label);
+}
+
+/* ---- equipment catalog (CSV import + name autocomplete) ---- */
+function parseCsvLine(line){
+  var out = [], cur = '', inQ = false;
+  for(var i=0;i<line.length;i++){
+    var ch = line[i];
+    if(inQ){
+      if(ch === '"'){ if(line[i+1] === '"'){ cur+='"'; i++; } else { inQ = false; } }
+      else cur += ch;
+    } else {
+      if(ch === '"') inQ = true;
+      else if(ch === ',') { out.push(cur); cur=''; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out.map(function(s){ return s.trim(); });
+}
+function parseCsvText(text){
+  return text.split(/\r\n|\n|\r/)
+    .filter(function(l){ return l.trim().length>0; })
+    .map(parseCsvLine);
+}
+function importCatalogCsv(inp){
+  if(!editMode) return;
+  var file = inp.files[0]; if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var rows = parseCsvText(e.target.result);
+      if(!rows.length){ alert('That CSV appears to be empty.'); return; }
+      var headerWords = ['tag','equipment','name','id','description','desc','room','drawing'];
+      var firstLower = rows[0].map(function(s){ return s.toLowerCase(); });
+      var looksLikeHeader = firstLower.some(function(w){ return headerWords.indexOf(w) !== -1; });
+      var dataRows = looksLikeHeader ? rows.slice(1) : rows;
+      if(!data.equipmentCatalog) data.equipmentCatalog = [];
+      var added = 0, updated = 0;
+      dataRows.forEach(function(cols){
+        var tag = (cols[0]||'').trim();
+        if(!tag) return;
+        var desc = (cols[1]||'').trim();
+        var existing = data.equipmentCatalog.find(function(c){ return c.tag.toLowerCase()===tag.toLowerCase(); });
+        if(existing){ if(desc) existing.desc = desc; updated++; }
+        else { data.equipmentCatalog.push({id:'cat_'+uid(), tag:tag, desc:desc}); added++; }
+      });
+      markDirty(); renderSettings();
+      toast('Catalog updated — '+added+' added, '+updated+' matched existing tags.');
+    }catch(err){ alert('Could not read that CSV file.'); }
+  };
+  reader.readAsText(file);
+  inp.value = '';
+}
+function clearCatalog(){
+  if(!editMode) return;
+  if(!(data.equipmentCatalog||[]).length){ toast('Catalog is already empty.'); return; }
+  if(!confirm('Clear the entire equipment catalog? Equipment already placed on drawings is not affected.')) return;
+  data.equipmentCatalog = [];
+  markDirty(); renderSettings();
+  toast('Catalog cleared.');
+}
+function removeCatalogItem(id){
+  if(!editMode) return;
+  data.equipmentCatalog = data.equipmentCatalog.filter(function(c){ return c.id!==id; });
+  markDirty(); renderSettings();
+}
+function eqCatalogMatches(q){
+  q = (q||'').trim().toLowerCase();
+  if(!q) return [];
+  return (data.equipmentCatalog||[]).filter(function(c){
+    return c.tag.toLowerCase().indexOf(q)!==-1 || (c.desc||'').toLowerCase().indexOf(q)!==-1;
+  }).slice(0,8);
+}
+var acHiIdx = -1;
+function renderEqSuggestions(){
+  var input = document.getElementById('eq-name');
+  var list = document.getElementById('eq-name-suggest');
+  var items = eqCatalogMatches(input.value);
+  list.innerHTML = ''; acHiIdx = -1;
+  if(!items.length){ list.classList.remove('show'); return; }
+  items.forEach(function(c){
+    var div = document.createElement('div'); div.className='ac-item';
+    div.innerHTML = escapeHtml(c.tag) + (c.desc? '<span class="desc">'+escapeHtml(c.desc)+'</span>' : '');
+    div.addEventListener('mousedown', function(ev){ ev.preventDefault(); input.value = c.tag; list.classList.remove('show'); });
+    list.appendChild(div);
+  });
+  list.classList.add('show');
+}
+function updateEqSuggestHighlight(){
+  var items = document.getElementById('eq-name-suggest').querySelectorAll('.ac-item');
+  items.forEach(function(it,i){ it.classList.toggle('hi', i===acHiIdx); });
+}
+
 /* ================= REPORT / CSV ================= */
 function reportRows(){
   /* [{drawingName, items:[equipment sorted by name]}] in drawing order, plus unassigned */
@@ -1242,6 +1539,7 @@ function printReport(){
   if(!w){ alert('Your browser blocked the report window — allow pop-ups for this site and try again.'); return; }
   var C = {planned:'#000000', off:'#1e7e42', inst:'#a86e00', pei:'#1a5dab', today:'#7d2fb0', on:'#c22525'};
   var counts = {planned:0, off:0, inst:0, pei:0, today:0, on:0};
+  (data.customStatuses||[]).forEach(function(c){ C[c.id]=c.color; counts[c.id]=0; });
   data.equipment.forEach(function(e){ counts[e.status||'off'] = (counts[e.status||'off']||0)+1; });
   var now = new Date();
   var h = '<!DOCTYPE html><html><head><title>Energization Status Report</title><style>'
@@ -1268,8 +1566,11 @@ function printReport(){
     +'<b style="background:'+C.pei+'">PEI WALKED: '+counts.pei+'</b>'
     +'<b style="background:'+C.inst+'">INSTALLED: '+counts.inst+'</b>'
     +'<b style="background:'+C.off+'">DE-ENERGIZED: '+counts.off+'</b>'
-    +'<b style="background:'+C.planned+';border:1px solid #999">NOT INSTALLED: '+counts.planned+'</b>'
-    +'</div>';
+    +'<b style="background:'+C.planned+';border:1px solid #999">NOT INSTALLED: '+counts.planned+'</b>';
+  (data.customStatuses||[]).forEach(function(c){
+    h += '<b style="background:'+c.color+';color:'+readableTextColor(c.color)+'">'+escapeHtml(c.label.toUpperCase())+': '+counts[c.id]+'</b>';
+  });
+  h += '</div>';
   reportRows().forEach(function(g){
     h += '<h2>'+escapeHtml(g.name)+'</h2>'
       +'<table><tr><th style="width:26%">Equipment</th><th style="width:20%">Status</th>'
@@ -1277,7 +1578,7 @@ function printReport(){
     g.items.forEach(function(e){
       var st = e.status||'off';
       h += '<tr><td><b>'+escapeHtml(e.name)+'</b></td>'
-        +'<td><span class="st" style="background:'+C[st]+'">'+ST_LABEL[st]+'</span></td>'
+        +'<td><span class="st" style="background:'+(C[st]||'#888')+';color:'+readableTextColor(C[st]||'#888')+'">'+statusLabel(st)+'</span></td>'
         +'<td>'+(e.instDate||'&mdash;')+'</td>'
         +'<td>'+(e.peiDate||'&mdash;')+'</td>'
         +'<td>'+(e.date||'&mdash;')+'</td></tr>';
@@ -1293,7 +1594,7 @@ function exportCsv(){
   var lines = ['Drawing,Equipment,Status,Date Installed,Date PEI Walked,Date Energized'];
   reportRows().forEach(function(g){
     g.items.forEach(function(e){
-      lines.push([q(g.name), q(e.name), q(ST_LABEL[e.status||'off']), q(e.instDate), q(e.peiDate), q(e.date)].join(','));
+      lines.push([q(g.name), q(e.name), q(statusLabel(e.status||'off')), q(e.instDate), q(e.peiDate), q(e.date)].join(','));
     });
   });
   var blob = new Blob([lines.join('\r\n')], {type:'text/csv'});
