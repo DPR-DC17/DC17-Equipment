@@ -695,10 +695,10 @@
       "y": 0.4953084538967839,
       "w": 0.0025019214485768257,
       "h": 0.021799734517168656,
-      "status": "pei",
+      "status": "on",
       "instDate": "",
       "peiDate": "2026-07-09",
-      "date": "",
+      "date": "2026-07-24",
       "notes": ""
     },
     {
@@ -3084,7 +3084,7 @@
       "instDate": "2026-07-21",
       "peiDate": "2026-08-06",
       "date": "",
-      "notes": "Need Signature from Hanley"
+      "notes": "Need Signature from Hanley. Hanley signed on 8.7.26"
     },
     {
       "id": "idmrv4o4npqr4ou",
@@ -3144,7 +3144,7 @@
       "instDate": "2026-07-21",
       "peiDate": "2026-08-06",
       "date": "",
-      "notes": "Need Signature from Hanley"
+      "notes": "Need Signature from Hanley. Hanley signed 8.7.26"
     },
     {
       "id": "idmrv4pe43pnktb",
@@ -3429,7 +3429,7 @@
       "instDate": "2026-07-21",
       "peiDate": "2026-08-06",
       "date": "",
-      "notes": "Need Signature from Hanley"
+      "notes": "Need Signature from Hanley. Hanley signed 8.7.26"
     },
     {
       "id": "idmrv4zo7s9jefp",
@@ -3489,7 +3489,7 @@
       "instDate": "2026-07-21",
       "peiDate": "2026-08-06",
       "date": "",
-      "notes": "Need Signature from Hanley"
+      "notes": "Need Signature from Hanley. hanley signed 8.7.26"
     },
     {
       "id": "idmrv54nmegmcz8",
@@ -5062,7 +5062,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     },
@@ -5077,7 +5077,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     },
@@ -5092,7 +5092,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     },
@@ -5107,7 +5107,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     },
@@ -5122,7 +5122,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     },
@@ -5137,7 +5137,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     },
@@ -5152,7 +5152,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     },
@@ -5167,7 +5167,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     },
@@ -5182,7 +5182,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     },
@@ -5197,7 +5197,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     },
@@ -5212,7 +5212,7 @@
       "h": 0.0031889953411870188,
       "status": "pei",
       "instDate": "",
-      "peiDate": "2026-08-06",
+      "peiDate": "2026-08-07",
       "date": "",
       "notes": ""
     }
