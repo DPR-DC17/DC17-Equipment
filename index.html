@@ -640,6 +640,8 @@ function enableEditMode(){
 function disableEditMode(){
   editMode = false;
   setAddMode(false);
+  setSelectMode(false);
+  cancelPaste();
   applyEditModeUI();
 }
 function applyEditModeUI(){
@@ -647,6 +649,8 @@ function applyEditModeUI(){
   b.classList.toggle('on', editMode);
   b.textContent = editMode ? '✎ Edit mode: ON' : '✎ Edit mode: OFF';
   document.getElementById('btn-add-eq').style.display = editMode? '' : 'none';
+  document.getElementById('btn-select-mode').style.display = editMode? '' : 'none';
+  document.getElementById('pastegrp').style.display = (editMode && clipboard) ? 'flex' : 'none';
   document.getElementById('empty-add').style.display = editMode? '' : 'none';
   document.getElementById('eq-desc').textContent = editMode
     ? 'Set the status of each item: black = not installed yet, green = de-energized, amber = installed, blue = PEI walked, violet = energizing today, red = energized. Download data.json and upload to GitHub to publish.'
