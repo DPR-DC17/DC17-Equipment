@@ -1097,10 +1097,13 @@ function commitPaste(clickX, clickY){
   });
   markDirty();
   cancelPaste();
-  selectedIds = newIds;
-  setSelectMode(true);
+  setSelectMode(false);
   renderAll(); renderSettings();
-  toast('Pasted '+newIds.length+' item'+(newIds.length===1?'':'s')+' — rename tags, then Copy again to place more, or Clear to finish');
+  newIds.forEach(function(id){
+    var el = document.querySelector('.hs[data-eq="'+id+'"]');
+    if(el){ el.classList.add('flash'); setTimeout(function(){ el.classList.remove('flash'); }, 2200); }
+  });
+  toast('Pasted '+newIds.length+' item'+(newIds.length===1?'':'s')+' — click one to rename, or hit Paste again to place more');
 }
 var curShape = 'rect';
 function setShape(s){
