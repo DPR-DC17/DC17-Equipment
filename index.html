@@ -1628,18 +1628,32 @@ function printReport(){
     h += '<b style="background:'+c.color+';color:'+readableTextColor(c.color)+'">'+escapeHtml(c.label.toUpperCase())+': '+counts[c.id]+'</b>';
   });
   h += '</div>';
-  h += '<table><tr><th style="width:14%">Status</th><th style="width:18%">Equipment</th><th style="width:15%">Drawing/Room</th>'
-    +'<th style="width:10%">Installed</th><th style="width:10%">PEI walked</th><th style="width:10%">Energized</th><th style="width:23%">Notes</th></tr>';
+
+  /* Only the three statuses with a real date meaning get a dedicated date
+     column. Filtering to one of those shows just that date; filtering to
+     any other single status (or a custom one) shows no date columns at
+     all, since none would apply. "All statuses" shows all three, as before. */
+  var STATUS_DATE_FIELD = {inst:{key:'instDate', label:'Installed'}, pei:{key:'peiDate', label:'PEI walked'}, on:{key:'date', label:'Energized'}};
+  var dateCols;
+  if(statusFilter === 'all') dateCols = [STATUS_DATE_FIELD.inst, STATUS_DATE_FIELD.pei, STATUS_DATE_FIELD.on];
+  else if(STATUS_DATE_FIELD[statusFilter]) dateCols = [STATUS_DATE_FIELD[statusFilter]];
+  else dateCols = [];
+
+  var fixedPct = 14+18+15+23; // Status + Equipment + Drawing/Room + Notes
+  var dateColPct = dateCols.length ? Math.floor((100-fixedPct)/dateCols.length) : 0;
+  var notesPct = 23 + (dateCols.length ? 0 : (100-fixedPct)); // notes absorbs the space when no date columns
+
+  h += '<table><tr><th style="width:14%">Status</th><th style="width:18%">Equipment</th><th style="width:15%">Drawing/Room</th>';
+  dateCols.forEach(function(c){ h += '<th style="width:'+dateColPct+'%">'+c.label+'</th>'; });
+  h += '<th style="width:'+notesPct+'%">Notes</th></tr>';
   rows.forEach(function(row){
     var e = row.e, d = row.d;
     var st = e.status||'off';
     h += '<tr><td><span class="st" style="background:'+(C[st]||'#888')+';color:'+readableTextColor(C[st]||'#888')+'">'+statusLabel(st)+'</span></td>'
       +'<td><b>'+escapeHtml(e.name)+'</b></td>'
-      +'<td>'+(d? escapeHtml(d.name) : '&mdash;')+'</td>'
-      +'<td>'+(e.instDate||'&mdash;')+'</td>'
-      +'<td>'+(e.peiDate||'&mdash;')+'</td>'
-      +'<td>'+(e.date||'&mdash;')+'</td>'
-      +'<td>'+(e.notes? escapeHtml(e.notes) : '&mdash;')+'</td></tr>';
+      +'<td>'+(d? escapeHtml(d.name) : '&mdash;')+'</td>';
+    dateCols.forEach(function(c){ h += '<td>'+(e[c.key]||'&mdash;')+'</td>'; });
+    h += '<td>'+(e.notes? escapeHtml(e.notes) : '&mdash;')+'</td></tr>';
   });
   h += '</table>';
   h += '<script>window.onload=function(){window.print();}<\/script></body></html>';
