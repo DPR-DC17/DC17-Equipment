@@ -1617,16 +1617,23 @@ function printReport(){
     +'<div class="sub">'+escapeHtml(data.site || 'ESB Energization Status Board')+'</div>'
     +'<div class="gen">Generated '+now.toLocaleDateString()+' '+now.toLocaleTimeString()+' &middot; '+data.equipment.length+' equipment items total</div>'
     +'<div class="viewinfo">Sorted by '+escapeHtml(sortDesc)+' &middot; Showing: '+escapeHtml(filterDesc)+' ('+rows.length+' item'+(rows.length===1?'':'s')+' listed below)</div>'
-    +'<div class="summary">'
-    +'<b style="background:'+C.on+'">ENERGIZED: '+counts.on+'</b>'
-    +'<b style="background:'+C.today+'">ENERGIZING TODAY: '+counts.today+'</b>'
-    +'<b style="background:'+C.pei+'">PEI WALKED: '+counts.pei+'</b>'
-    +'<b style="background:'+C.inst+'">INSTALLED: '+counts.inst+'</b>'
-    +'<b style="background:'+C.off+'">DE-ENERGIZED: '+counts.off+'</b>'
-    +'<b style="background:'+C.planned+';border:1px solid #999">NOT INSTALLED: '+counts.planned+'</b>';
-  (data.customStatuses||[]).forEach(function(c){
-    h += '<b style="background:'+c.color+';color:'+readableTextColor(c.color)+'">'+escapeHtml(c.label.toUpperCase())+': '+counts[c.id]+'</b>';
-  });
+    +'<div class="summary">';
+  if(statusFilter === 'all'){
+    h += '<b style="background:'+C.on+'">ENERGIZED: '+counts.on+'</b>'
+      +'<b style="background:'+C.today+'">ENERGIZING TODAY: '+counts.today+'</b>'
+      +'<b style="background:'+C.pei+'">PEI WALKED: '+counts.pei+'</b>'
+      +'<b style="background:'+C.inst+'">INSTALLED: '+counts.inst+'</b>'
+      +'<b style="background:'+C.off+'">DE-ENERGIZED: '+counts.off+'</b>'
+      +'<b style="background:'+C.planned+';border:1px solid #999">NOT INSTALLED: '+counts.planned+'</b>';
+    (data.customStatuses||[]).forEach(function(c){
+      h += '<b style="background:'+c.color+';color:'+readableTextColor(c.color)+'">'+escapeHtml(c.label.toUpperCase())+': '+counts[c.id]+'</b>';
+    });
+  } else {
+    var fc = C[statusFilter] || '#888';
+    var fLabel = statusLabel(statusFilter).toUpperCase();
+    var extraBorder = statusFilter==='planned' ? ';border:1px solid #999' : '';
+    h += '<b style="background:'+fc+';color:'+readableTextColor(fc)+extraBorder+'">'+escapeHtml(fLabel)+': '+rows.length+'</b>';
+  }
   h += '</div>';
 
   /* Only the three statuses with a real date meaning get a dedicated date
