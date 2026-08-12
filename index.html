@@ -134,6 +134,12 @@ select.st-on{border-color:var(--hot);color:var(--hot)}
 .hs.ellipse .tag{left:50%;transform:translateX(-50%)}
 .dragbox.ellipse{border-radius:50%}
 .shapegrp{display:none;gap:2px;background:#0e1114;border:1px solid var(--line);border-radius:3px;padding:2px}
+.selectgrp{display:flex;gap:8px;align-items:center;background:#0e1114;border:1px solid var(--line);border-radius:3px;padding:5px 10px}
+.hs.picked{outline:3px solid #4da3ff;outline-offset:2px;box-shadow:0 0 12px rgba(77,163,255,.6)}
+.marquee{position:absolute;border:2px dashed #4da3ff;background:rgba(77,163,255,.12);pointer-events:none}
+.paste-ghost{position:absolute;border:2px dashed #4da3ff;background:rgba(77,163,255,.18);pointer-events:none}
+.viewer.selectmode{cursor:crosshair}
+.viewer.pastemode{cursor:copy}
 .shapegrp.show{display:flex}
 .shapebtn{background:none;border:none;color:var(--muted);padding:4px 10px;cursor:pointer;font-size:14px;border-radius:2px;font-family:'IBM Plex Mono'}
 .shapebtn.sel{background:var(--amber);color:#14171c}
@@ -255,6 +261,16 @@ input[type=checkbox]:disabled{opacity:.4;cursor:not-allowed}
   <div class="dtabs" id="dtabs"></div>
   <div class="toolbar" id="toolbar" style="display:none">
     <button class="btn warn" id="btn-add-eq" onclick="toggleAddMode()" style="display:none">+ Add equipment</button>
+    <button class="btn" id="btn-select-mode" onclick="toggleSelectMode()" style="display:none">Select</button>
+    <div class="selectgrp" id="selectgrp" style="display:none">
+      <span class="hint" id="select-count">0 selected</span>
+      <button class="btn mini" id="btn-copy-sel" onclick="copySelection()" disabled>Copy</button>
+      <button class="btn ghost mini" onclick="clearSelection()">Clear</button>
+    </div>
+    <div class="selectgrp" id="pastegrp" style="display:none">
+      <button class="btn warn mini" id="btn-paste" onclick="startPaste()">Paste (<span id="paste-count">0</span>) — click to place</button>
+      <button class="btn ghost mini" onclick="clearClipboard()">✕</button>
+    </div>
     <div class="shapegrp" id="shapegrp">
       <button class="shapebtn sel" id="shape-rect" onclick="setShape('rect')" title="Rectangle">▭ Box</button>
       <button class="shapebtn" id="shape-ellipse" onclick="setShape('ellipse')" title="Circle / ellipse">◯ Circle</button>
@@ -501,6 +517,10 @@ var addMode = false;
 var pendingRect = null;
 var lastRect = null;   // last drawn box size, for click-to-stamp and duplicate
 var editingEqId = null;
+var selectMode = false;
+var pasteMode = false;
+var selectedIds = [];
+var clipboard = null;  // {items:[{name,shape,relX,relY,w,h}], bboxW, bboxH}
 
 var LS_KEY = 'esb_working';
 
@@ -838,7 +858,7 @@ function renderHotspots(){
   data.equipment.filter(function(e){return e.drawingId===activeDrawing}).forEach(function(e){
     var div = document.createElement('div');
     var custom = !isBuiltinStatus(e.status) ? findCustomStatus(e.status) : null;
-    div.className = 'hs'+(e.status==='on'?' on':e.status==='today'?' today':e.status==='pei'?' pei':e.status==='inst'?' inst':e.status==='planned'?' planned':'')+(e.shape==='ellipse'?' ellipse':'');
+    div.className = 'hs'+(e.status==='on'?' on':e.status==='today'?' today':e.status==='pei'?' pei':e.status==='inst'?' inst':e.status==='planned'?' planned':'')+(e.shape==='ellipse'?' ellipse':'')+(selectedIds.indexOf(e.id)!==-1?' picked':'');
     div.style.left=(e.x*100)+'%'; div.style.top=(e.y*100)+'%';
     div.style.width=(e.w*100)+'%'; div.style.height=(e.h*100)+'%';
     div.setAttribute('data-eq', e.id);
@@ -853,6 +873,9 @@ function renderHotspots(){
       tag.style.color = readableTextColor(custom.color);
     }
     div.appendChild(tag);
+    div.addEventListener('click', function(ev){
+      if(selectMode){ ev.stopPropagation(); toggleSelect(e.id); }
+    });
     if(editMode){
       div.classList.add('editable');
       var rz = document.createElement('span'); rz.className='rz';
@@ -870,7 +893,7 @@ function attachBoxEditing(div, eq, rz){
   var img = document.getElementById('dimg');
   var act = null;
   div.addEventListener('pointerdown', function(ev){
-    if(addMode) return;
+    if(addMode || selectMode || pasteMode) return;
     ev.stopPropagation(); ev.preventDefault();
     act = { type: (ev.target===rz ? 'resize' : 'move'),
             sx:ev.clientX, sy:ev.clientY,
@@ -968,14 +991,112 @@ function toggleAddMode(){ setAddMode(!addMode); }
 function setAddMode(on){
   if(on && !editMode) return;
   addMode = on;
+  if(on){ setSelectMode(false); cancelPaste(); }
   var v = document.getElementById('viewer');
   v.classList.toggle('addmode', on);
-  v.classList.toggle('panmode', !on);
+  v.classList.toggle('panmode', !on && !selectMode && !pasteMode);
   var b = document.getElementById('btn-add-eq');
   b.classList.toggle('armed', on);
   b.textContent = on ? 'Cancel add mode' : '+ Add equipment';
   document.getElementById('shapegrp').classList.toggle('show', on);
   document.getElementById('mode-hint').textContent = on ? 'Drag a box over the equipment — or single-click to stamp the last size' : '';
+}
+
+/* ---- multi-select, copy, paste (for repeated room layouts) ---- */
+function toggleSelectMode(){ setSelectMode(!selectMode); }
+function setSelectMode(on){
+  if(on && !editMode) return;
+  selectMode = on;
+  if(on){ setAddMode(false); cancelPaste(); }
+  if(!on) selectedIds = [];
+  var v = document.getElementById('viewer');
+  v.classList.toggle('selectmode', on);
+  v.classList.toggle('panmode', !on && !addMode && !pasteMode);
+  var b = document.getElementById('btn-select-mode');
+  b.classList.toggle('armed', on);
+  b.textContent = on ? 'Cancel select' : 'Select';
+  document.getElementById('selectgrp').style.display = on ? 'flex' : 'none';
+  document.getElementById('mode-hint').textContent = on ? 'Drag a box around equipment, or click individual items, to select — then Copy' : '';
+  updateSelectUI();
+  renderHotspots();
+}
+function toggleSelect(id){
+  var i = selectedIds.indexOf(id);
+  if(i===-1) selectedIds.push(id); else selectedIds.splice(i,1);
+  updateSelectUI();
+  renderHotspots();
+}
+function clearSelection(){
+  selectedIds = [];
+  updateSelectUI();
+  renderHotspots();
+}
+function updateSelectUI(){
+  var n = selectedIds.length;
+  document.getElementById('select-count').textContent = n+' selected';
+  document.getElementById('btn-copy-sel').disabled = n===0;
+}
+function copySelection(){
+  if(!selectedIds.length) return;
+  var items = data.equipment.filter(function(e){ return selectedIds.indexOf(e.id)!==-1; });
+  if(!items.length) return;
+  var minX = Math.min.apply(null, items.map(function(e){return e.x;}));
+  var minY = Math.min.apply(null, items.map(function(e){return e.y;}));
+  clipboard = {
+    items: items.map(function(e){
+      return { name:e.name, shape:e.shape||'rect', relX:e.x-minX, relY:e.y-minY, w:e.w, h:e.h };
+    })
+  };
+  toast('Copied '+items.length+' item'+(items.length===1?'':'s')+' — switch drawings if needed, then hit Paste');
+  setSelectMode(false);
+  document.getElementById('pastegrp').style.display = 'flex';
+  document.getElementById('paste-count').textContent = clipboard.items.length;
+}
+function clearClipboard(){
+  clipboard = null;
+  cancelPaste();
+  document.getElementById('pastegrp').style.display = 'none';
+}
+function startPaste(){
+  if(!clipboard || !editMode) return;
+  pasteMode = true;
+  setAddMode(false); setSelectMode(false);
+  var v = document.getElementById('viewer');
+  v.classList.add('pastemode');
+  v.classList.remove('panmode');
+  document.getElementById('mode-hint').textContent = 'Click on the drawing to place the copied group';
+}
+function cancelPaste(){
+  pasteMode = false;
+  var v = document.getElementById('viewer');
+  if(v){ v.classList.remove('pastemode'); v.classList.toggle('panmode', !addMode && !selectMode); }
+  var g = document.getElementById('paste-ghost-layer'); if(g) g.remove();
+  var hint = document.getElementById('mode-hint'); if(hint && !addMode && !selectMode) hint.textContent='';
+}
+function commitPaste(clickX, clickY){
+  if(!clipboard) return;
+  var maxRelW = Math.max.apply(null, clipboard.items.map(function(i){return i.relX+i.w;}));
+  var maxRelH = Math.max.apply(null, clipboard.items.map(function(i){return i.relY+i.h;}));
+  var placeX = Math.min(Math.max(clickX, 0), 1-Math.min(maxRelW,1));
+  var placeY = Math.min(Math.max(clickY, 0), 1-Math.min(maxRelH,1));
+  var newIds = [];
+  clipboard.items.forEach(function(it){
+    var nx = Math.min(Math.max(placeX+it.relX, 0), 1-it.w);
+    var ny = Math.min(Math.max(placeY+it.relY, 0), 1-it.h);
+    var id = 'eq_'+uid();
+    data.equipment.push({
+      id:id, name:it.name+' copy', drawingId:activeDrawing, shape:it.shape,
+      x:nx, y:ny, w:it.w, h:it.h,
+      status:'planned', instDate:'', peiDate:'', date:'', notes:''
+    });
+    newIds.push(id);
+  });
+  markDirty();
+  cancelPaste();
+  selectedIds = newIds;
+  setSelectMode(true);
+  renderAll(); renderSettings();
+  toast('Pasted '+newIds.length+' item'+(newIds.length===1?'':'s')+' — rename tags, then Copy again to place more, or Clear to finish');
 }
 var curShape = 'rect';
 function setShape(s){
@@ -1048,6 +1169,81 @@ function setShape(s){
     viewer.scrollTop  = pan.st - (ev.clientY - pan.y);
   });
   window.addEventListener('pointerup', function(){ pan=null; viewer.classList.remove('panning'); });
+
+  /* ---- multi-select marquee (drag on empty area while in Select mode) ---- */
+  var msel=null, mselGhost=null;
+  wrap.addEventListener('pointerdown', function(ev){
+    if(!selectMode) return;
+    if(ev.target.closest('.hs')) return;
+    ev.preventDefault();
+    var r = img.getBoundingClientRect();
+    msel = { x:(ev.clientX-r.left)/r.width, y:(ev.clientY-r.top)/r.height };
+    mselGhost = document.createElement('div'); mselGhost.className='marquee';
+    wrap.appendChild(mselGhost);
+    wrap.setPointerCapture(ev.pointerId);
+  });
+  wrap.addEventListener('pointermove', function(ev){
+    if(!selectMode || !msel || !mselGhost) return;
+    var r = img.getBoundingClientRect();
+    var cx = Math.min(Math.max((ev.clientX-r.left)/r.width,0),1);
+    var cy = Math.min(Math.max((ev.clientY-r.top)/r.height,0),1);
+    var x=Math.min(msel.x,cx), y=Math.min(msel.y,cy);
+    var w=Math.abs(cx-msel.x), h=Math.abs(cy-msel.y);
+    mselGhost.style.left=(x*100)+'%'; mselGhost.style.top=(y*100)+'%';
+    mselGhost.style.width=(w*100)+'%'; mselGhost.style.height=(h*100)+'%';
+    mselGhost._rect={x:x,y:y,w:w,h:h};
+  });
+  wrap.addEventListener('pointerup', function(){
+    if(!selectMode || !msel) return;
+    var rect = mselGhost && mselGhost._rect;
+    if(mselGhost) mselGhost.remove(); mselGhost=null; msel=null;
+    if(!rect || rect.w<0.003 || rect.h<0.003) return;
+    data.equipment.filter(function(e){return e.drawingId===activeDrawing;}).forEach(function(e){
+      var ex2=e.x+e.w, ey2=e.y+e.h, rx2=rect.x+rect.w, ry2=rect.y+rect.h;
+      var intersects = e.x < rx2 && ex2 > rect.x && e.y < ry2 && ey2 > rect.y;
+      if(intersects && selectedIds.indexOf(e.id)===-1) selectedIds.push(e.id);
+    });
+    updateSelectUI();
+    renderHotspots();
+  });
+
+  /* ---- paste: live preview follows cursor (mouse), click/tap commits ---- */
+  var pasteGhostLayer = null;
+  wrap.addEventListener('pointermove', function(ev){
+    if(!pasteMode || !clipboard) return;
+    var r = img.getBoundingClientRect();
+    var cx = (ev.clientX-r.left)/r.width, cy = (ev.clientY-r.top)/r.height;
+    if(!pasteGhostLayer){
+      pasteGhostLayer = document.createElement('div');
+      pasteGhostLayer.id = 'paste-ghost-layer';
+      wrap.appendChild(pasteGhostLayer);
+    }
+    pasteGhostLayer.innerHTML = '';
+    var maxRelW = Math.max.apply(null, clipboard.items.map(function(i){return i.relX+i.w;}));
+    var maxRelH = Math.max.apply(null, clipboard.items.map(function(i){return i.relY+i.h;}));
+    var placeX = Math.min(Math.max(cx, 0), 1-Math.min(maxRelW,1));
+    var placeY = Math.min(Math.max(cy, 0), 1-Math.min(maxRelH,1));
+    clipboard.items.forEach(function(it){
+      var g = document.createElement('div');
+      g.className = 'paste-ghost'+(it.shape==='ellipse'?' ellipse':'');
+      g.style.left = ((placeX+it.relX)*100)+'%';
+      g.style.top = ((placeY+it.relY)*100)+'%';
+      g.style.width = (it.w*100)+'%';
+      g.style.height = (it.h*100)+'%';
+      pasteGhostLayer.appendChild(g);
+    });
+    pasteGhostLayer._placeX = placeX; pasteGhostLayer._placeY = placeY;
+  });
+  wrap.addEventListener('click', function(ev){
+    if(!pasteMode || !clipboard) return;
+    ev.stopPropagation();
+    var r = img.getBoundingClientRect();
+    var cx = (ev.clientX-r.left)/r.width, cy = (ev.clientY-r.top)/r.height;
+    var placeX = cx, placeY = cy;
+    if(pasteGhostLayer && pasteGhostLayer._placeX!==undefined){ placeX = pasteGhostLayer._placeX; placeY = pasteGhostLayer._placeY; }
+    if(pasteGhostLayer){ pasteGhostLayer.remove(); pasteGhostLayer = null; }
+    commitPaste(placeX, placeY);
+  });
 
   viewer.addEventListener('wheel', function(ev){
     ev.preventDefault();
