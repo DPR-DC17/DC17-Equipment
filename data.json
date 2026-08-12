@@ -6355,6 +6355,36 @@
       "peiDate": "",
       "date": "",
       "notes": ""
+    },
+    {
+      "id": "eq_idmsqm0czm9lnrm",
+      "name": "UPNL-K-3-2 copy",
+      "drawingId": "idmrwhvvtap58tw",
+      "shape": "rect",
+      "x": 0.5057960378030304,
+      "y": 0.37731708648219314,
+      "w": 0.003371389165581107,
+      "h": 0.0019411028529103813,
+      "status": "planned",
+      "instDate": "",
+      "peiDate": "",
+      "date": "",
+      "notes": ""
+    },
+    {
+      "id": "eq_idmsqm0czmvs295",
+      "name": "UPNL-M-3-2 copy",
+      "drawingId": "idmrwhvvtap58tw",
+      "shape": "rect",
+      "x": 0.5055301577938357,
+      "y": 0.35245539006046306,
+      "w": 0.003371389165581107,
+      "h": 0.0019411028529103813,
+      "status": "planned",
+      "instDate": "",
+      "peiDate": "",
+      "date": "",
+      "notes": ""
     }
   ]
 }
