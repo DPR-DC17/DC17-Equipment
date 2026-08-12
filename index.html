@@ -1162,7 +1162,7 @@ function setShape(s){
   });
 
   viewer.addEventListener('pointerdown', function(ev){
-    if(addMode) return;
+    if(addMode || selectMode || pasteMode) return;
     if(ev.target.closest('.hs') || ev.target.closest('.pop')) return;
     pan = {x:ev.clientX, y:ev.clientY, sl:viewer.scrollLeft, st:viewer.scrollTop};
     viewer.classList.add('panning');
